@@ -1,0 +1,48 @@
+# Trusted Publishing to TestPyPI.
+# One-time setup: https://test.pypi.org/manage/account/publishing/
+#   Owner: alexisbellot
+#   Repo:  partialid
+#   Workflow: publish-testpypi.yml
+#   Environment name: testpypi  (optional but recommended)
+#
+# Trigger: push a tag matching v* (e.g. v0.1.0a1), or workflow_dispatch.
+
+name: Publish to TestPyPI
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-publish:
+    name: Build and upload
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/partialid
+    permissions:
+      id-token: write  # Trusted Publishing
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true

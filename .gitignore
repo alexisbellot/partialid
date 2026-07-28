@@ -1,0 +1,53 @@
+# Research collateral (not in sdist / package)
+papers/
+latex/
+Figures/
+ROADMAP_*.md
+SOLVERS.md
+THEORY.md
+FOUNDATIONS.md
+LP_ASSUMPTIONS_101.md
+README_PI_SOLVER.md
+IDEAS.md
+scripts/md_to_theory_tex.py
+scripts/polish_theory_tex.py
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.maf
+*.mtc
+*.mtc?
+*.ptc
+*.ptc?
+
+
+# OS and editor
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+.eggs/
+dist/
+build/
+src/*.egg-info/
+benchmarks/results/
+.venv/
+.venv_p2/
+site/
+.coverage
+htmlcov/

@@ -1,0 +1,36 @@
+# Source distribution policy — see docs/product.md
+# Wheel still contains only the installable package under src/partialid.
+
+include pyproject.toml
+include MANIFEST.in
+include README.md
+include LICENSE
+include CHANGELOG.md
+include .pre-commit-config.yaml
+
+graft src/partialid
+graft tests
+graft examples
+graft docs
+graft notebooks
+
+# Research / internal collateral — never in the sdist
+prune papers
+prune latex
+prune Figures
+prune benchmarks
+prune scripts
+recursive-exclude .vscode *
+recursive-exclude .venv *
+recursive-exclude .venv_p2 *
+exclude README_PI_SOLVER.md
+exclude FOUNDATIONS.md
+exclude LP_ASSUMPTIONS_101.md
+exclude THEORY.md
+exclude SOLVERS.md
+global-exclude ROADMAP_*.md
+global-exclude IDEAS.md
+
+global-exclude *.py[cod] *.so .DS_Store
+global-exclude */__pycache__/*
+global-exclude *.pdf *.aux *.bbl *.blg *.synctex.gz

@@ -1,0 +1,148 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "partialid"
+version = "0.1.0a4"
+description = "Partial identification for discrete causal models by composing assumptions from the literature"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "BSD-3-Clause" }
+authors = [
+  { name = "Alexis Bellot", email = "abellotolivan@gmail.com" },
+]
+maintainers = [
+  { name = "Alexis Bellot", email = "abellotolivan@gmail.com" },
+]
+keywords = [
+  "causal inference",
+  "partial identification",
+  "assumptions",
+  "sensitivity analysis",
+  "bounds",
+  "structural causal model",
+  "discrete",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Scientific/Engineering :: Mathematics",
+  "Typing :: Typed",
+]
+dependencies = [
+  "numpy>=1.24",
+  "scipy>=1.10",
+]
+
+[project.optional-dependencies]
+fast = ["highspy>=1.5"]
+convex = ["cvxpy>=1.4"]
+data = ["pandas>=2.0"]
+all = [
+  "highspy>=1.5",
+  "cvxpy>=1.4",
+  "pandas>=2.0",
+]
+docs = [
+  "mkdocs>=1.6",
+  "mkdocs-material>=9.5",
+  "mkdocstrings>=0.25",
+  "mkdocstrings-python>=1.10",
+]
+dev = [
+  "pytest>=7.0",
+  "ruff>=0.6",
+  "mypy>=1.8",
+  "coverage[toml]>=7.0",
+  "build>=1.0",
+  "twine>=5.0",
+  "pre-commit>=3.5",
+  "mkdocs>=1.6",
+  "mkdocs-material>=9.5",
+  "mkdocstrings>=0.25",
+  "mkdocstrings-python>=1.10",
+]
+
+[project.urls]
+Homepage = "https://github.com/alexisbellot/partialid"
+Documentation = "https://alexisbellot.github.io/partialid/"
+Repository = "https://github.com/alexisbellot/partialid"
+Issues = "https://github.com/alexisbellot/partialid/issues"
+Changelog = "https://github.com/alexisbellot/partialid/blob/main/CHANGELOG.md"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["partialid*"]
+
+[tool.setuptools.package-data]
+partialid = ["py.typed"]
+
+# sdist membership is governed by MANIFEST.in (see docs/product.md).
+[tool.setuptools]
+include-package-data = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "slow: long-running tests (deselect with '-m not slow')",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = [
+  "E501",  # line length handled by formatter
+  "E731",  # lambda assignments in numeric kernels
+  "F841",  # unused locals in internal stubs
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+warn_unused_ignores = true
+check_untyped_defs = true
+follow_imports = "skip"
+show_error_codes = true
+# Phase 3: public / practitioner modules; widen later.
+files = [
+  "src/partialid/__init__.py",
+  "src/partialid/variables.py",
+  "src/partialid/data.py",
+  "src/partialid/assumptions.py",
+  "src/partialid/query.py",
+  "src/partialid/graph.py",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["partialid"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+# Gate the practitioner-facing modules (Phase 3).
+include = [
+  "*/partialid/api.py",
+  "*/partialid/assumptions.py",
+  "*/partialid/query.py",
+  "*/partialid/variables.py",
+  "*/partialid/data.py",
+]
+fail_under = 85

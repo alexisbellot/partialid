@@ -1,0 +1,32 @@
+# Nightly smoke for scale / stress suites (not every PR).
+name: Nightly benchmarks
+
+on:
+  schedule:
+    - cron: "0 6 * * *"  # 06:00 UTC
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Scale table
+        run: python scripts/gen_scale_table.py
+      - name: Benchmark suites D/E/F (quick)
+        run: |
+          PYTHONPATH=src:benchmarks python benchmarks/run_all.py --suite D E F --quick
+        continue-on-error: true
+      - name: Upload scale table
+        uses: actions/upload-artifact@v4
+        with:
+          name: scale-table
+          path: docs/scale_table.md

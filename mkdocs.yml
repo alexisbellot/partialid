@@ -1,0 +1,95 @@
+site_name: partialid
+site_description: Partial identification for discrete causal models by composing assumptions from the literature
+site_url: https://alexisbellot.github.io/partialid/
+repo_url: https://github.com/alexisbellot/partialid
+repo_name: partialid
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+    - toc.follow
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: numpy
+            members_order: source
+            show_source: false
+            show_root_heading: true
+            show_symbol_type_heading: true
+            separate_signature: true
+            merge_init_into_class: true
+            filters: ["!^_"]
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+  - attr_list
+  - md_in_html
+
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - Concepts: concepts.md
+  - Assumptions: assumptions.md
+  - Sensitivity analysis: sensitivity.md
+  - Graphs & instruments: graphs.md
+  - Recipes:
+      - Manski 2×2 table: recipes/manski.md
+      - MSM sensitivity curve: recipes/msm_path.md
+      - IV + monotonicity: recipes/iv.md
+      - Soft independence (margin budget): recipes/margin_budget.md
+      - Measurement error (optional): recipes/measurement_error.md
+  - API reference:
+      - Overview: api/index.md
+      - Variables & data: api/data.md
+      - Assumptions: api/assumptions.md
+      - Queries: api/query.md
+      - Bound: api/bound.md
+  - Advanced:
+      - Auto routing: auto_routing.md
+      - Scale snapshot: scale_table.md
+      - Solvers: advanced/solvers.md
+      - Product boundaries: product.md
+      - Stability (0.x): stability.md
+      - Publishing: publishing.md
+  - Citing: citing.md
+
+extra:
+  version: 0.1.0a4
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/alexisbellot/partialid
