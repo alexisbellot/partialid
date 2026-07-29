@@ -10,14 +10,14 @@ from partialid.backends import prefer_colgen_auto, should_use_dual
 from partialid.fiber_solve import is_fiber_separable
 from partialid.formulate import LPData, formulate
 from partialid.problems import (
-    sachs_binary_iv,
-    sachs_ternary_cardinalities,
-    sachs_two_instruments_card,
+    binary_iv,
+    ternary_cardinalities,
+    two_instruments_card,
 )
 
 
 def test_should_use_dual_two_iv():
-    p = sachs_two_instruments_card(card_z=3, seed=15)
+    p = two_instruments_card(card_z=3, seed=15)
     lp = formulate(p.variables, p.data, p.query, p.assumptions)
     assert lp.A_ub is None
     assert should_use_dual(lp)
@@ -26,7 +26,7 @@ def test_should_use_dual_two_iv():
 
 def test_should_use_dual_large_xy_eq_only():
     """Full-type (non-instrument) eq-only LP also qualifies — not IV-specific."""
-    p = sachs_ternary_cardinalities(5, 2, seed=1)
+    p = ternary_cardinalities(5, 2, seed=1)
     lp = formulate(p.variables, p.data, p.query, p.assumptions)
     assert is_fiber_separable(lp)
     assert lp.A_eq.shape[1] > 64
@@ -34,7 +34,7 @@ def test_should_use_dual_large_xy_eq_only():
 
 
 def test_auto_routes_dual_on_two_iv():
-    p = sachs_two_instruments_card(card_z=3, seed=15)
+    p = two_instruments_card(card_z=3, seed=15)
     r = bound(p.variables, p.data, p.query, p.assumptions, method="auto")
     assert r.success
     assert r.method == "lp/dual"
@@ -56,7 +56,7 @@ def test_auto_prefers_fiber_or_closed_on_manski():
 
 def test_method_dual_force_small_iv():
     """force_dual works below the size gate (binary IV ~16 types)."""
-    p = sachs_binary_iv(seed=2)
+    p = binary_iv(seed=2)
     lp = formulate(p.variables, p.data, p.query, p.assumptions)
     assert not should_use_dual(lp)  # below gate
     assert should_use_dual(lp, force=True)

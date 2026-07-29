@@ -123,9 +123,9 @@ def test_bound_path_c_and_kappa_breakdown(re1):
 
 
 def test_iv_msm_path_monotone():
-    from partialid.problems import sachs_binary_iv
+    from partialid.problems import binary_iv
 
-    p = sachs_binary_iv(seed=0)
+    p = binary_iv(seed=0)
     path = bound_path(
         p.variables,
         p.data,

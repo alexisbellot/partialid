@@ -12,7 +12,7 @@ from typing import Any, Mapping
 import numpy as np
 
 from partialid import Assumptions, CausalDiagram, Query, Variables
-from partialid.problems import Problem, sachs_binary_iv
+from partialid.problems import Problem, binary_iv
 
 RE1_P = {(0, 0): 0.30, (0, 1): 0.20, (1, 0): 0.15, (1, 1): 0.35}
 
@@ -220,7 +220,7 @@ def item_frontdoor_classic() -> CatalogItem:
 
 
 def item_binary_iv(*, seed: int = 2) -> CatalogItem:
-    prob = sachs_binary_iv(seed=seed)
+    prob = binary_iv(seed=seed)
     return CatalogItem(
         name="binary_iv",
         family="instrument",
@@ -297,7 +297,7 @@ def item_prop84_confounded_wl(*, seed: int = 0) -> CatalogItem:
     truth = float(np.einsum("ij,i,j->", gpp0.c_obj, q1, q2))
     p = Problem(
         name="prop84_confounded_wl",
-        source="Prop. 8.4 / Sachs",
+        source="Prop. 8.4",
         variables=V,
         data=P,
         query=Q,
@@ -347,7 +347,7 @@ def item_gpp_k2(*, seed: int = 0) -> CatalogItem:
         data=P,
         query=Q,
         assumptions=Assumptions.from_diagram(g),
-        notes="rank-1 pushforward; truth known; no Sachs cut",
+        notes="rank-1 pushforward; truth known; no WL–WR cut",
     )
     return CatalogItem(
         name="gpp_k2_scm",
@@ -461,9 +461,9 @@ def item_chain_order(n: int = 4, card: int = 2) -> CatalogItem:
 
 
 def item_two_iv(*, card_z: int = 3) -> CatalogItem:
-    from partialid.problems import sachs_two_instruments_card
+    from partialid.problems import two_instruments_card
 
-    prob = sachs_two_instruments_card(card_z=card_z, seed=4)
+    prob = two_instruments_card(card_z=card_z, seed=4)
     return CatalogItem(
         name=prob.name,
         family="structure",

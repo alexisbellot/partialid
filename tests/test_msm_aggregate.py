@@ -178,9 +178,9 @@ def test_msm_agg_inert_chain_matches_lp():
 
 
 def test_iv_msm_tightens_and_msm_agg_matches_lp():
-    from partialid.problems import sachs_binary_iv
+    from partialid.problems import binary_iv
 
-    p = sachs_binary_iv(seed=2)
+    p = binary_iv(seed=2)
     r0 = bound(p.variables, p.data, p.query, p.assumptions, method="lp")
     a = p.assumptions & Assumptions.tan_msm("X", 3.0)
     rl = bound(p.variables, p.data, p.query, a, method="lp")
@@ -192,9 +192,9 @@ def test_iv_msm_tightens_and_msm_agg_matches_lp():
 
 
 def test_iv_mtr_msm_matches_lp():
-    from partialid.problems import sachs_binary_iv
+    from partialid.problems import binary_iv
 
-    p = sachs_binary_iv(seed=2)
+    p = binary_iv(seed=2)
     # Conditional-on-Z MSM + MTR can refute tight Λ; Λ=10 is feasible for seed=2.
     a = p.assumptions & Assumptions.mtr("Y", "X") & Assumptions.tan_msm("X", 10.0)
     rl = bound(p.variables, p.data, p.query, a, method="lp")

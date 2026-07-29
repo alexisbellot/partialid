@@ -9,7 +9,7 @@ response types are maps ``x ↦ y`` and Tan MSM / c-dependence act per map:
    propensity LR (Tan when binary) or ℓ∞ c-dependence.
 3. **Inert prune:** order-only chains reduce to the active ``{X,Y}`` district
    before the aggregate (Move 2).
-4. **IV + MSM:** Sachs R-side LP with anchored budgets (no column aggregation);
+4. **IV + MSM:** instrument R-side LP with anchored budgets (no column aggregation);
    ``msm_agg`` routes there when ``WR={X,Y}``.
 5. **Exact breakpoints / breakdown** for the binary-Y MSM path (no MTR).
 
@@ -440,14 +440,14 @@ def applicable_msm_aggregate(
     if not orders and not diagrams:
         return False, "need order or diagram", None, None, None
 
-    # IV path: Sachs WR = {treatment, outcome}
+    # IV path: WR = {treatment, outcome}
     if diagrams:
-        from .instrument import detect_sachs_cut
+        from .instrument import detect_wl_wr_cut
 
         g = diagrams[0].diagram
         if treatment not in g.nodes or outcome not in g.nodes:
             return False, "diagram nodes missing treatment/outcome", None, None, None
-        split = detect_sachs_cut(g, treatments=[treatment], outcome=outcome)
+        split = detect_wl_wr_cut(g, treatments=[treatment], outcome=outcome)
         if split is not None:
             _wl, wr = split
             if set(wr) == {treatment, outcome}:
@@ -457,7 +457,7 @@ def applicable_msm_aggregate(
         if set(g.nodes) == {treatment, outcome}:
             tag = reason + ("_mtr" if mtr else "")
             return True, tag, kind, value, "xy_transport"
-        return False, "diagram not XY and not Sachs WR={X,Y}", None, None, None
+        return False, "diagram not XY and not instrument WR={X,Y}", None, None, None
 
     # Order-only: allow inert extras; active set must be {treatment, outcome}
     if len(orders) != 1:
@@ -511,7 +511,7 @@ def _bound_via_instrument(
     kind: BudgetKind,
     value: float,
 ) -> MSMAggResult:
-    """Solve Sachs R-side LP with sensitivity (and optional MTR / no-defiers)."""
+    """Solve instrument R-side LP with sensitivity (and optional MTR / no-defiers)."""
     from .backends import solve_bounds_lp
     from .formulate import formulate
 

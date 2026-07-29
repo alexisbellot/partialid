@@ -20,7 +20,7 @@ from partialid import Assumptions, CausalDiagram, Query, Variables, bound
 from partialid.formulate import formulate
 from partialid.gpp import gpp_size_ok
 from partialid.lazy_types import LazyTypeSpace
-from partialid.problems import sachs_two_instruments_card
+from partialid.problems import two_instruments_card
 
 
 def _ok_row(name: str, family: str, check: str, msg: str = "", **kwargs) -> BenchRow:
@@ -168,7 +168,7 @@ def _gpp_size_gate() -> list[BenchRow]:
     )
     print(f"  [{'OK' if ok else 'FAIL'}] gpp_under_gate {msg}")
 
-    # Over: X→U breaks Sachs; Y parents X,U,V → ~512×8 > gate → outer
+    # Over: X→U breaks the WL–WR cut; Y parents X,U,V → ~512×8 > gate → outer
     V = Variables.from_binary("X", "U", "V", "Y")
     g = CausalDiagram.from_edges(
         ["X", "U", "V", "Y"],
@@ -230,7 +230,7 @@ def _gpp_size_gate() -> list[BenchRow]:
 def _recover_primal_dual_iv(*, quick: bool) -> list[BenchRow]:
     """Large two-IV: recover_primal True vs False — both succeed; False may be faster."""
     card_z = 3 if quick else 3
-    p = sachs_two_instruments_card(card_z=card_z, seed=4)
+    p = two_instruments_card(card_z=card_z, seed=4)
     rows = []
     times = {}
     for flag in (True, False):

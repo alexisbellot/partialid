@@ -33,7 +33,7 @@ def manski_exposure(
     x_index: int = 0,
     y_index: int = 1,
 ) -> tuple[float, float]:
-    """Manski for categorical exposure (Sachs ternary-style)."""
+    """Manski for categorical exposure (categorical exposure)."""
     lo = sum(v for cell, v in P.items() if cell[x_index] == do_x and cell[y_index] == y)
     hi = lo + sum(v for cell, v in P.items() if cell[x_index] != do_x)
     return float(lo), float(hi)

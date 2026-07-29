@@ -1,12 +1,12 @@
-"""Numeric checks against Sachs et al. (2022) example formulas."""
+"""Numeric checks against literature example formulas."""
 
 from __future__ import annotations
 
 from partialid import Assumptions, CausalDiagram, Query, Variables, bound
 
 
-def test_sachs_61_ternary_x_risk_difference():
-    """Sachs §6.1: ternary X, binary Y, RD P(Y(1)=1)-P(Y(0)=1).
+def test_ternary_x_risk_difference():
+    """Ternary confounded exposure: ternary X, binary Y, RD P(Y(1)=1)-P(Y(0)=1).
 
     Symbolic bounds from the paper:
       lower = p00 + p11 - 1
@@ -34,8 +34,8 @@ def test_sachs_61_ternary_x_risk_difference():
     assert abs(r.upper - hi) < 1e-6
 
 
-def test_sachs_63_measurement_error_monotone():
-    """Sachs §6.3: latent Y, observed Y2, monotonicity Y2(Y=1)≥Y2(Y=0).
+def test_measurement_error_monotone():
+    """Measurement-error graph: latent Y, observed Y2, monotonicity Y2(Y=1)≥Y2(Y=0).
 
     Paper bounds on RD P(Y(1)=1)-P(Y(0)=1):
       max{-1, 2 p(Y2=0|X=0) - 2 p(Y2=0|X=1) - 1}
@@ -43,7 +43,7 @@ def test_sachs_63_measurement_error_monotone():
       min{1, 2 p(Y2=0|X=0) - 2 p(Y2=0|X=1) + 1}
     """
     V = Variables.from_binary("X", "Y", "Y2", observed=["X", "Y2"])
-    # Sachs §6.3: X unconfounded with (Y,Y2); U_R confounds Y–Y2; Y latent.
+    # Measurement-error graph: X unconfounded with (Y,Y2); U_R confounds Y–Y2; Y latent.
     g = CausalDiagram.from_edges(
         ["X", "Y", "Y2"],
         directed=[("X", "Y"), ("Y", "Y2")],

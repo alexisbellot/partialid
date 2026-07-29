@@ -196,7 +196,7 @@ def bound(
         ``\"dual\"`` forces the equality-only dual shortcut (falls back to primal).
         ``\"colgen\"`` matrix-free column generation.
         ``\"msm_agg\"`` sensitivity-native MSM / c-dep aggregate (binary-X,
-        arbitrary |Y|; MTR; IV R-side when Sachs ``WR={X,Y}``).
+        arbitrary |Y|; MTR; IV R-side when ``WR={X,Y}``).
         ``\"hyperarc\"`` Shridharan–Iyengar hyperarc aggregation.
         ``\"c_canonical\"`` finite-latent cardinality (NeurIPS 2022 Thm 2).
     optimize :

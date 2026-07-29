@@ -1,6 +1,6 @@
 """Bilinear GPP for ≥2 free confounded districts (Zhang Def. 0.1).
 
-When Prop. 8.4 / Sachs does not apply and the ancestral ADMG has K=2 free
+When Prop. 8.4 does not apply and the ancestral ADMG has K=2 free
 c-degree-1 districts, the canonical program is bilinear in block masses
 (q¹, q²).  We solve by a *nested LP* over the smaller simplex:
 

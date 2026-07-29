@@ -20,7 +20,7 @@ from harness import (
 from partialid import Assumptions, CausalDiagram, Query, Variables
 from partialid.problems import (
     chain_order_only,
-    sachs_binary_iv,
+    binary_iv,
     shridharan_multi_treatment,
 )
 
@@ -97,7 +97,7 @@ def _bow_with_inert(n: int, *, seed: int = 1):
 
 def _iv_n_instruments(n_inst: int, *, seed: int = 2):
     if n_inst == 1:
-        return sachs_binary_iv(seed=seed)
+        return binary_iv(seed=seed)
     z_names = [f"Z{i}" for i in range(n_inst)]
     names = z_names + ["X", "Y"]
     V = Variables.from_binary(*names)

@@ -72,7 +72,7 @@ class TypeSpace:
         type_index = {jt: i for i, jt in enumerate(joint_types)}
 
         # Observational fibers are indexed by *observed* coordinates only
-        # (latent endogenous marginalized; Sachs et al. 2022 §6.3).
+        # (latent endogenous marginalized; latent endogenous / measurement error).
         obs_order = variables.observed_names(order)
         fiber: dict[tuple, list[int]] = {cell: [] for cell in variables.cells(obs_order)}
         for t_idx, type_ids in enumerate(joint_types):

@@ -1,7 +1,7 @@
 """Shridharan–Iyengar hyperarc LP (JMLR 2023 Algorithm 1).
 
 Aggregates response-function variables into valid hyperarcs VA → VB for
-Sachs-partition graphs, without enumerating the full type space R.
+VA/VB-partition graphs, without enumerating the full type space R.
 """
 
 from __future__ import annotations
@@ -75,7 +75,7 @@ def _partition_va_vb(
     intervention: Mapping[str, object],
     outcome: str,
 ) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    """Sachs / Shridharan partition.
+    """VA/VB / Shridharan partition.
 
     VA = observed roots that do **not** share a latent confounder with the
     outcome (Assumption 1: no (A,B) pair shares a confounder; VB may include

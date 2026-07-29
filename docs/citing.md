@@ -21,5 +21,5 @@ release train.
 ## Methods
 
 Please also cite the methodological sources for the assumptions and algorithms
-you rely on (e.g. Manski bounds, Tan MSM, Balke–Pearl IV, Sachs et al. on
+you rely on (e.g. Manski bounds, Tan MSM, Balke–Pearl IV,
 symbolic/numeric bounds).

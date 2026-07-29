@@ -86,7 +86,8 @@ data = from_counts(("X", "Y"), {(0, 0): 30, (0, 1): 20, (1, 0): 15, (1, 1): 35})
 r = bound(data.variables, data.P, Q, Assumptions.manski("X", "Y"))
 ```
 
-See `examples/quickstart.py` and `examples/from_csv.py`.
+See `examples/quickstart.py`, `examples/from_csv.py`, and the showcase
+notebooks under `notebooks/` (`.ipynb`).
 
 ## Assumptions (catalog)
 
@@ -134,7 +135,7 @@ Full site (MkDocs): [partialid documentation](https://alexisbellot.github.io/par
 | [API](docs/api/index.md) | Public symbols |
 | [Solvers](docs/advanced/solvers.md) | Advanced methods / routing |
 | [examples/](examples/) | Runnable scripts |
-
+| [notebooks/](notebooks/) | Showcase Jupyter notebooks |
 Build locally: `pip install -e ".[docs]" && mkdocs serve`
 
 ## License

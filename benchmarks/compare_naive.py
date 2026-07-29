@@ -17,10 +17,10 @@ from partialid import bound
 from partialid.formulate import formulate
 from partialid.problems import (
     chain_order_only,
-    sachs_binary_iv,
-    sachs_ternary_cardinalities,
-    sachs_ternary_exposure,
-    sachs_two_instruments,
+    binary_iv,
+    ternary_cardinalities,
+    ternary_exposure,
+    two_instruments,
     shridharan_multi_treatment,
 )
 
@@ -129,14 +129,14 @@ def _safe_run(p, *, optimize: bool, method: str = "auto"):
 
 def main():
     problems = [
-        sachs_ternary_exposure(),
-        sachs_ternary_cardinalities(4, 2),
-        sachs_ternary_cardinalities(5, 2, seed=10),
+        ternary_exposure(),
+        ternary_cardinalities(4, 2),
+        ternary_cardinalities(5, 2, seed=10),
         chain_order_only(3, 2),
         chain_order_only(4, 2),  # naive may be huge
         chain_order_only(3, 3),
-        sachs_binary_iv(),
-        sachs_two_instruments(),
+        binary_iv(),
+        two_instruments(),
         shridharan_multi_treatment(2, 2),
     ]
 

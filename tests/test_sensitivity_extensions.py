@@ -42,9 +42,9 @@ def test_msm_agg_ternary_lambda1_point_id():
 
 
 def test_bound_path_iv_breakdown_bisection():
-    from partialid.problems import sachs_binary_iv
+    from partialid.problems import binary_iv
 
-    p = sachs_binary_iv(seed=2)
+    p = binary_iv(seed=2)
     path = bound_path(
         p.variables,
         p.data,

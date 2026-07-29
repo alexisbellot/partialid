@@ -8,7 +8,7 @@ import numpy as np
 
 from partialid import Assumptions, CausalDiagram, Query, Variables, bound
 from partialid.identify import try_identify
-from partialid.problems import sachs_binary_iv
+from partialid.problems import binary_iv
 
 RE1 = {(0, 0): 0.30, (0, 1): 0.20, (1, 0): 0.15, (1, 1): 0.35}
 
@@ -81,7 +81,7 @@ def test_frontdoor_with_confounding():
 
 
 def test_iv_not_point_id_instrument_tight():
-    p = sachs_binary_iv(seed=2)
+    p = binary_iv(seed=2)
     r = bound(p.variables, p.data, p.query, p.assumptions)
     assert not r.method.startswith("id/")
     assert r.tight  # Balke–Pearl R-side LP or closed form is tight for IV
@@ -122,7 +122,7 @@ def test_isolated_node_degree1_tight():
 
 
 def test_two_free_districts_outer_or_fallback():
-    """Large ≥2-free graph (no Sachs cut): size gate → outer LP."""
+    """Large ≥2-free graph (no WL–WR cut): size gate → outer LP."""
     V = Variables.from_binary("X", "U", "V", "Y")
     rng = np.random.default_rng(1)
     cells = V.cells(["X", "U", "V", "Y"])
@@ -145,7 +145,7 @@ def test_two_free_districts_outer_or_fallback():
 
 
 def test_prop84_prefers_instrument_lp_over_gpp():
-    """Confounded WL with Sachs cut → Layer-1 LP, not bilinear GPP."""
+    """Confounded WL with a WL–WR cut → Layer-1 LP, not bilinear GPP."""
     g = CausalDiagram.from_edges(
         ["X", "B", "A", "Y"],
         directed=[("X", "Y"), ("B", "A"), ("A", "Y")],
@@ -155,9 +155,9 @@ def test_prop84_prefers_instrument_lp_over_gpp():
     V = Variables.from_binary(*order)
     from partialid.degree1 import analyze_degree1
     from partialid.gpp import build_gpp
-    from partialid.instrument import detect_sachs_cut
+    from partialid.instrument import detect_wl_wr_cut
 
-    assert detect_sachs_cut(g, treatments=["X"], outcome="Y") is not None
+    assert detect_wl_wr_cut(g, treatments=["X"], outcome="Y") is not None
     fac = analyze_degree1(g, treatments=["X"], outcome="Y")
     assert len(fac.free_districts) == 2
     cells = V.cells(order)
@@ -172,12 +172,12 @@ def test_prop84_prefers_instrument_lp_over_gpp():
     r = bound(V, P, Q, Assumptions.from_diagram(g))
     assert r.method == "lp"
     assert r.success and r.tight
-    assert any("Prop. 8.4" in n or "Sachs" in n for n in r.notes)
+    assert any("Prop. 8.4" in n or "WL–WR" in n for n in r.notes)
     assert r.lower - 1e-5 <= q_true <= r.upper + 1e-5
 
 
 def test_gpp_bilinear_tighter_than_outer():
-    """K=2 free districts without Sachs cut: GPP contains truth and beats outer."""
+    """K=2 free districts without a WL–WR cut: GPP contains truth and beats outer."""
     # X→A breaks Prop. 8.4; districts {X,Y}, {A,B}
     g = CausalDiagram.from_edges(
         ["X", "B", "A", "Y"],
@@ -190,9 +190,9 @@ def test_gpp_bilinear_tighter_than_outer():
     from partialid.degree1 import analyze_degree1
     from partialid.formulate import formulate
     from partialid.gpp import build_gpp
-    from partialid.instrument import detect_sachs_cut
+    from partialid.instrument import detect_wl_wr_cut
 
-    assert detect_sachs_cut(g, treatments=["X"], outcome="Y") is None
+    assert detect_wl_wr_cut(g, treatments=["X"], outcome="Y") is None
     fac = analyze_degree1(g, treatments=["X"], outcome="Y")
     assert len(fac.free_districts) == 2
 

@@ -16,10 +16,10 @@ from partialid import bound
 from partialid.formulate import formulate
 from partialid.problems import (
     chain_order_only,
-    sachs_binary_iv,
-    sachs_ternary_cardinalities,
-    sachs_ternary_exposure,
-    sachs_two_instruments,
+    binary_iv,
+    ternary_cardinalities,
+    ternary_exposure,
+    two_instruments,
     shridharan_multi_treatment,
 )
 
@@ -104,18 +104,18 @@ def _time_bound(p, *, optimize: bool, method: str = "auto") -> dict:
 
 def _problems(*, quick: bool):
     probs = [
-        sachs_ternary_exposure(),
-        sachs_ternary_cardinalities(4, 2),
+        ternary_exposure(),
+        ternary_cardinalities(4, 2),
         chain_order_only(3, 2),
         chain_order_only(4, 2),
-        sachs_binary_iv(seed=2),
-        sachs_two_instruments(seed=3),
+        binary_iv(seed=2),
+        two_instruments(seed=3),
         shridharan_multi_treatment(2, 2),
     ]
     if not quick:
         probs.extend(
             [
-                sachs_ternary_cardinalities(5, 2, seed=10),
+                ternary_cardinalities(5, 2, seed=10),
                 chain_order_only(3, 3),
                 shridharan_multi_treatment(3, 2),
             ]

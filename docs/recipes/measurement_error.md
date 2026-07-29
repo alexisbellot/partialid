@@ -1,7 +1,6 @@
 # Recipe: measurement error (optional)
 
-**Job:** true outcome is latent; you observe a misclassified measurement
-(Sachs-style).
+**Job:** true outcome is latent; you observe a misclassified measurement.
 
 Declare latent endogenous variables with `observed=...`. They still have
 response types and may appear in queries, but do **not** index \(P\).

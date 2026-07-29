@@ -8,23 +8,23 @@ from partialid import Assumptions, Query, Variables, bound
 from partialid.problems import (
     all_literature_problems,
     chain_order_only,
-    sachs_binary_iv,
-    sachs_ternary_cardinalities,
-    sachs_ternary_exposure,
-    sachs_two_instruments,
+    binary_iv,
+    ternary_cardinalities,
+    ternary_exposure,
+    two_instruments,
     shridharan_multi_treatment,
 )
 
 
 def test_ternary_manski_width():
-    p = sachs_ternary_exposure(seed=0)
+    p = ternary_exposure(seed=0)
     r = bound(p.variables, p.data, p.query, p.assumptions)
     assert r.success
     assert abs(r.width - p.expected_width) < 1e-7
 
 
 def test_higher_card_manski():
-    p = sachs_ternary_cardinalities(4, 2, seed=1)
+    p = ternary_cardinalities(4, 2, seed=1)
     r = bound(p.variables, p.data, p.query, p.assumptions, method="fiber")
     assert abs(r.width - p.expected_width) < 1e-7
     r_lp = bound(p.variables, p.data, p.query, p.assumptions, method="lp")
@@ -72,7 +72,7 @@ def test_binary_iv_contains_truth():
 
 
 def test_iv_tighter_than_naive_outer():
-    p = sachs_binary_iv(seed=2)
+    p = binary_iv(seed=2)
     r_opt = bound(p.variables, p.data, p.query, p.assumptions, optimize=True, method="lp")
     r_naive = bound(p.variables, p.data, p.query, p.assumptions, optimize=False, method="lp")
     assert r_opt.success and r_naive.success
@@ -82,7 +82,7 @@ def test_iv_tighter_than_naive_outer():
 
 
 def test_two_instruments_feasible():
-    p = sachs_two_instruments(seed=3)
+    p = two_instruments(seed=3)
     r = bound(p.variables, p.data, p.query, p.assumptions, method="lp")
     assert r.success, r.message
     assert r.width >= 0

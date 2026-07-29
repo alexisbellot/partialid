@@ -31,4 +31,5 @@ r = bound(V, P, Q, Assumptions.sensitivity_msm("X", "Y", Lambda=3.0))
 print(r.summary(Q))
 ```
 
-Also see `notebooks/msm_sensitivity.py` (runnable percent-format notebook).
+Also see `notebooks/msm_sensitivity.ipynb` and the other showcase notebooks under
+`notebooks/`.

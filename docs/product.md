@@ -49,6 +49,6 @@ the `partialid` package (and metadata).
 
 ## Non-goals (near term)
 
-- Symbolic vertex enumeration (Sachs / `causaloptim` product category)
+- Symbolic vertex enumeration (`causaloptim` / symbolic vertex enumeration)
 - Shipping the paper tree inside the installable artifact
 - Requiring users to choose advanced solvers for common cases

@@ -8,8 +8,8 @@ from pathlib import Path
 
 from partialid import bound
 from partialid.problems import (
-    sachs_binary_iv,
-    sachs_ternary_exposure,
+    binary_iv,
+    ternary_exposure,
     shridharan_multi_treatment,
 )
 
@@ -29,8 +29,8 @@ def _med(fn, repeats: int = 5) -> float:
 def main():
     rows = []
     cases = [
-        ("re1_style_ternary", sachs_ternary_exposure()),
-        ("iv_binary", sachs_binary_iv(seed=2)),
+        ("re1_style_ternary", ternary_exposure()),
+        ("iv_binary", binary_iv(seed=2)),
         ("multi_T2", shridharan_multi_treatment(2, 2)),
         ("multi_T3", shridharan_multi_treatment(3, 2)),
     ]

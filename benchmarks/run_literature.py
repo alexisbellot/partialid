@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Literature + scaling wall-clock suite (pure Python; no R).
 
-Compares fiber / lp / colgen on Sachs- and Shridharan-style instances.
+Compares fiber / lp / colgen on literature and Shridharan-style instances.
 """
 
 from __future__ import annotations
@@ -17,8 +17,8 @@ from partialid.formulate import formulate
 from partialid.problems import (
     all_literature_problems,
     chain_order_only,
-    sachs_ternary_cardinalities,
-    sachs_two_instruments_card,
+    ternary_cardinalities,
+    two_instruments_card,
     shridharan_multi_treatment,
 )
 
@@ -110,12 +110,12 @@ def main():
     problems = list(all_literature_problems())
     # extra scaling / cardinality (keep type counts modest)
     problems += [
-        sachs_ternary_cardinalities(5, 2, seed=10),
-        sachs_ternary_cardinalities(3, 4, seed=11),
-        sachs_two_instruments_card(card_z=2, seed=12),
+        ternary_cardinalities(5, 2, seed=10),
+        ternary_cardinalities(3, 4, seed=11),
+        two_instruments_card(card_z=2, seed=12),
         chain_order_only(5, 2, seed=13),  # inert prune → binary XY
         # card_z=3 → 2^(3*3)=512 X-types × 4 Y-types = 2048 (LP ok, skip colgen)
-        sachs_two_instruments_card(card_z=3, seed=15),
+        two_instruments_card(card_z=3, seed=15),
     ]
 
     all_rows = []

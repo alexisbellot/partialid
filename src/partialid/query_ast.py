@@ -1,7 +1,7 @@
 """Unified linear / fractional query AST.
 
 Every numeric query is eventually a real linear combination of *atomic*
-events (Sachs et al. 2022, Prop. 3 / Cor. 1), optionally as a ratio for
+events (unnested response-type atoms (Prop. 3 / Cor. 1)), optionally as a ratio for
 conditionals (Correa, Lee & Bareinboim, NeurIPS 2021, §4).
 
 Nested potential outcomes are accepted here as syntax; the compiler

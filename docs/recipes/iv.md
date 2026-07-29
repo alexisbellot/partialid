@@ -4,10 +4,10 @@
 
 ```python
 from partialid import Assumptions, bound
-from partialid.problems import sachs_binary_iv
+from partialid.problems import binary_iv
 
 # Observational law sampled from a valid IV SCM (Z→X→Y, X↔Y)
-p = sachs_binary_iv(seed=2)
+p = binary_iv(seed=2)
 
 # Classic IV diagram (default: no no-defiers)
 r = bound(p.variables, p.data, p.query, Assumptions.iv("Z", "X", "Y"))

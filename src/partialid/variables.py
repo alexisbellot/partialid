@@ -16,7 +16,7 @@ class Variables:
 
     ``observed`` lists variables that appear in the observational law ``P``.
     Endogenous nodes missing from ``observed`` are *latent* (e.g. true
-    outcome under measurement error; Sachs et al. 2022 §6.3): they still
+    outcome under measurement error; latent endogenous / measurement error): they still
     have response types and may appear in queries, but do not index ``P``.
     """
 

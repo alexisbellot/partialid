@@ -1,10 +1,10 @@
-"""Sachs / Prop. 8.4 cut completeness vs GPP routing."""
+"""Prop. 8.4 WL–WR cut completeness vs GPP routing."""
 
 from __future__ import annotations
 
 from partialid import Assumptions, CausalDiagram, Query, Variables
 from partialid.formulate import formulate
-from partialid.instrument import detect_sachs_cut
+from partialid.instrument import detect_wl_wr_cut
 
 
 def test_prop84_confounded_wl_is_lp_not_gpp():
@@ -13,7 +13,7 @@ def test_prop84_confounded_wl_is_lp_not_gpp():
         directed=[("X", "Y"), ("B", "A"), ("A", "Y")],
         bidirected=[("X", "Y"), ("A", "B")],
     )
-    cut = detect_sachs_cut(g, treatments=["X"], outcome="Y")
+    cut = detect_wl_wr_cut(g, treatments=["X"], outcome="Y")
     assert cut is not None
     assert set(cut[1]) == {"X", "Y"}
     V = Variables.from_binary(*g.topological_order())
@@ -24,32 +24,32 @@ def test_prop84_confounded_wl_is_lp_not_gpp():
     lp = formulate(V, P, Q, Assumptions.from_diagram(g))
     assert lp.method_hint == "lp"
     assert lp.gpp is None
-    assert any("Prop. 8.4" in n or "Sachs" in n for n in lp.notes)
+    assert any("Prop. 8.4" in n or "WL–WR" in n for n in lp.notes)
 
 
-def test_true_gpp_has_no_sachs_cut():
+def test_true_gpp_has_no_wl_wr_cut():
     g = CausalDiagram.from_edges(
         ["X", "B", "A", "Y"],
         directed=[("X", "Y"), ("B", "A"), ("A", "Y"), ("X", "A")],
         bidirected=[("X", "Y"), ("A", "B")],
     )
-    assert detect_sachs_cut(g, treatments=["X"], outcome="Y") is None
+    assert detect_wl_wr_cut(g, treatments=["X"], outcome="Y") is None
 
 
-def test_isolated_z_not_sachs_wl():
+def test_isolated_z_not_wl():
     g = CausalDiagram.from_edges(
         ["X", "Y", "Z"],
         directed=[("X", "Y")],
         bidirected=[("X", "Y")],
     )
-    assert detect_sachs_cut(g, treatments=["X"], outcome="Y") is None
+    assert detect_wl_wr_cut(g, treatments=["X"], outcome="Y") is None
 
 
-def test_classic_iv_sachs():
+def test_classic_iv_wl_wr():
     g = CausalDiagram.from_edges(
         ["Z", "X", "Y"],
         directed=[("Z", "X"), ("X", "Y")],
         bidirected=[("X", "Y")],
     )
-    cut = detect_sachs_cut(g, treatments=["X"], outcome="Y")
+    cut = detect_wl_wr_cut(g, treatments=["X"], outcome="Y")
     assert cut == (("Z",), ("X", "Y"))

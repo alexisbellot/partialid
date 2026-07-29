@@ -7,7 +7,7 @@ import numpy as np
 from partialid import bound
 from partialid.backends import solve_bounds_lp
 from partialid.formulate import formulate
-from partialid.problems import sachs_binary_iv, sachs_two_instruments_card
+from partialid.problems import binary_iv, two_instruments_card
 
 
 def _assert_witness(lp, q, value, maximize: bool):
@@ -22,7 +22,7 @@ def _assert_witness(lp, q, value, maximize: bool):
 
 
 def test_dual_path_recovers_witnesses_two_iv():
-    p = sachs_two_instruments_card(card_z=3, seed=15)
+    p = two_instruments_card(card_z=3, seed=15)
     lp = formulate(p.variables, p.data, p.query, p.assumptions)
     assert lp.A_eq.shape[1] > max(64, 4 * lp.A_eq.shape[0])
     r = bound(p.variables, p.data, p.query, p.assumptions, method="lp")
@@ -35,7 +35,7 @@ def test_dual_path_recovers_witnesses_two_iv():
 
 
 def test_recover_primal_false_skips_witness():
-    p = sachs_two_instruments_card(card_z=3, seed=15)
+    p = two_instruments_card(card_z=3, seed=15)
     r = bound(
         p.variables,
         p.data,
@@ -53,7 +53,7 @@ def test_recover_primal_false_skips_witness():
 
 def test_binary_iv_witness_matches_objective():
     # May or may not use dual (depends on size); witnesses must be finite either way
-    p = sachs_binary_iv(seed=2)
+    p = binary_iv(seed=2)
     r = bound(p.variables, p.data, p.query, p.assumptions, method="lp")
     assert r.success
     lp = formulate(p.variables, p.data, p.query, p.assumptions)

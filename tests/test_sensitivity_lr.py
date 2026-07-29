@@ -95,9 +95,9 @@ def test_conditional_msm_on_covariate_parent():
 
 
 def test_iv_conditional_msm_matches_msm_agg():
-    from partialid.problems import sachs_binary_iv
+    from partialid.problems import binary_iv
 
-    p = sachs_binary_iv(seed=2)
+    p = binary_iv(seed=2)
     a = p.assumptions & Assumptions.tan_msm("X", 3.0)
     rl = bound(p.variables, p.data, p.query, a, method="lp")
     ra = bound(p.variables, p.data, p.query, a, method="msm_agg")

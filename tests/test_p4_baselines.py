@@ -12,8 +12,8 @@ from partialid.causaloptim_formulas import (
     manski_exposure,
 )
 from partialid.problems import (
-    sachs_binary_iv,
-    sachs_ternary_exposure,
+    binary_iv,
+    ternary_exposure,
     shridharan_multi_treatment,
 )
 
@@ -41,7 +41,7 @@ def test_hyperarc_multi_treatment_closed_form():
 
 
 def test_hyperarc_iv_matches_instrument_lp():
-    iv = sachs_binary_iv(seed=2)
+    iv = binary_iv(seed=2)
     ri = bound(iv.variables, iv.data, iv.query, iv.assumptions)
     rh = bound(iv.variables, iv.data, iv.query, iv.assumptions, method="hyperarc")
     assert rh.success, rh.message
@@ -59,7 +59,7 @@ def test_manski_formula_oracle():
 
 
 def test_manski_ternary_matches_solver():
-    p = sachs_ternary_exposure(seed=0)
+    p = ternary_exposure(seed=0)
     r = bound(p.variables, p.data, p.query, p.assumptions)
     lo, hi = manski_exposure(p.data, do_x=1, y=1)
     assert abs(r.lower - lo) < 1e-9
@@ -68,7 +68,7 @@ def test_manski_ternary_matches_solver():
 
 @pytest.mark.parametrize("seed", [0, 2, 5, 9])
 def test_balke_pearl_formula_matches_instrument(seed):
-    iv = sachs_binary_iv(seed=seed)
+    iv = binary_iv(seed=seed)
     r = bound(iv.variables, iv.data, iv.query, iv.assumptions)
     lo, hi = balke_pearl_iv(iv.data)
     assert abs(r.lower - lo) < 1e-8

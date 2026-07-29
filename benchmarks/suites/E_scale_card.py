@@ -20,8 +20,8 @@ from harness import (
 from partialid import Assumptions, CausalDiagram, Query, Variables
 from partialid.problems import (
     chain_order_only,
-    sachs_ternary_cardinalities,
-    sachs_two_instruments_card,
+    ternary_cardinalities,
+    two_instruments_card,
 )
 
 
@@ -286,7 +286,7 @@ def run_suite_e(*, quick: bool = True) -> list[BenchRow]:
             structure="two_iv",
             cards=cfg["two_iv_z_cards"],
             methods=cfg["methods_iv"],
-            make_problem=lambda c: sachs_two_instruments_card(card_z=c, seed=4),
+            make_problem=lambda c: two_instruments_card(card_z=c, seed=4),
             timeout_s=timeout,
             frontier=frontier,
         )
@@ -309,15 +309,15 @@ def run_suite_e(*, quick: bool = True) -> list[BenchRow]:
 
     # Optional literature ternary exposure cards in full mode
     if not quick:
-        print("  -- Sachs ternary card_x --")
+        print("  -- ternary card_x --")
         rows.extend(
             _run_card_family(
                 suite="E",
-                family="sachs_ternary_x",
+                family="ternary_x",
                 structure="exposure",
                 cards=[3, 4, 5],
                 methods=("auto", "fiber", "lp"),
-                make_problem=lambda c: sachs_ternary_cardinalities(c, 2, seed=1),
+                make_problem=lambda c: ternary_cardinalities(c, 2, seed=1),
                 timeout_s=timeout,
                 frontier=frontier,
             )

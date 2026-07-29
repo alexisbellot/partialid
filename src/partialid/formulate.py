@@ -194,7 +194,7 @@ def _build_objective(
 ) -> tuple[np.ndarray, np.ndarray | None, list[str]]:
     """Compile ``query.expr`` → ``(c, c_den|None, notes)``.
 
-    Uses :mod:`partialid.query_compile` (CUT unnesting + Sachs Prop. 3
+    Uses :mod:`partialid.query_compile` (CUT unnesting + Prop. 3
     coefficients; conditionals via NeurIPS 2021 §4 ratios).
     """
     from .query_compile import FractionalObjective, LinearObjective, compile_objective
@@ -280,7 +280,7 @@ def _inert_prune_order_only(
         keep = {treat, query.outcome}
     else:
         keep = set(query.intervention) | {query.outcome}
-    # Latent endogenous: never drop observed proxies (Sachs §6.3); they carry P.
+    # Latent endogenous: never drop observed proxies (latent endogenous / measurement error); they carry P.
     if variables.observed is not None and set(variables.observed) != set(variables.names):
         keep |= set(variables.observed)
     if keep.issubset(diagram.nodes) and set(diagram.nodes) - keep:
@@ -326,7 +326,7 @@ def formulate(
         When ≥2 free confounded districts fit the size gate, build a bilinear GPP
         instead of the merged-latent outer LP. Set False to force the outer LP.
     """
-    from .instrument import detect_instrument_split, detect_sachs_cut, formulate_instrument
+    from .instrument import detect_instrument_split, detect_wl_wr_cut, formulate_instrument
 
     assumptions = as_assumption_set(assumptions)
     notes: list[str] = []
@@ -340,14 +340,14 @@ def formulate(
 
     diagram = _apply_exclusions(diagram, assumptions)
 
-    # Prop. 8.4 / Sachs WL–WR cut → tight R-side LP (before merging / GPP)
+    # Prop. 8.4 WL–WR cut → tight R-side LP (before merging / GPP)
     if optimize:
         split = None
         treatments = list(query.intervention.keys())
         if query.kind == "ate":
             treatments = [(query.meta or {}).get("treatment", "X")]
         if query.kind in ("interventional", "ate"):
-            split = detect_sachs_cut(
+            split = detect_wl_wr_cut(
                 diagram,
                 treatments=treatments,
                 outcome=query.outcome,
@@ -356,7 +356,7 @@ def formulate(
             split = detect_instrument_split(diagram)
         if split is not None and query.kind in ("interventional", "ate"):
             instruments, r_side = split
-            notes.append(f"Prop. 8.4 / Sachs cut: WL={list(instruments)}, WR={list(r_side)}")
+            notes.append(f"Prop. 8.4 WL–WR cut: WL={list(instruments)}, WR={list(r_side)}")
             lp = formulate_instrument(
                 variables, data, query, diagram, instruments, r_side, assumptions
             )
@@ -435,7 +435,7 @@ def formulate(
                 diagram = induced_subgraph(diagram, an_order)
                 notes.append(f"restricted to ancestral {list(an_order)}")
 
-            split_an = detect_sachs_cut(
+            split_an = detect_wl_wr_cut(
                 diagram,
                 treatments=list(query.intervention.keys()),
                 outcome=query.outcome,
@@ -443,7 +443,7 @@ def formulate(
             if split_an is not None:
                 instruments, r_side = split_an
                 notes.append(
-                    f"Prop. 8.4 / Sachs cut (ancestral): WL={list(instruments)}, WR={list(r_side)}"
+                    f"Prop. 8.4 WL–WR cut (ancestral): WL={list(instruments)}, WR={list(r_side)}"
                 )
                 lp = formulate_instrument(
                     variables, data, query, diagram, instruments, r_side, assumptions
@@ -555,12 +555,12 @@ def formulate(
 
     ts = TypeSpace.from_diagram(variables, diagram)
     # Observational law is over observed coordinates only (latent endogenous
-    # marginalized; Sachs et al. 2022 §6.3 measurement-error graphs).
+    # marginalized; latent endogenous / measurement error measurement-error graphs).
     obs_order = variables.observed_names(ts.order)
     if len(obs_order) != len(ts.order):
         notes.append(
             f"latent endogenous {[n for n in ts.order if n not in obs_order]}; "
-            f"P indexed by observed {list(obs_order)} (Sachs 2022 §6.3)"
+            f"P indexed by observed {list(obs_order)} (latent endogenous / measurement error)"
         )
     cells, P = _normalize_P(variables, obs_order, data)
     allow = _hard_face_mask(ts, assumptions)
@@ -574,12 +574,12 @@ def formulate(
         if outer:
             notes.append(
                 "independence atom present: merged-latent path is a certified "
-                "outer unless ID/Sachs already applied (hard split not fully "
+                "outer unless ID/WL–WR already applied (hard split not fully "
                 "factorized in v1)"
             )
         else:
             notes.append(
-                "independence atom noted; tight factorization only when ID/Sachs "
+                "independence atom noted; tight factorization only when ID/WL–WR "
                 "reduces the problem"
             )
 

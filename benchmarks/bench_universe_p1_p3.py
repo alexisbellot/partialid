@@ -24,7 +24,7 @@ from partialid import (
     bound_ci,
     bound_path,
 )
-from partialid.problems import sachs_binary_iv
+from partialid.problems import binary_iv
 
 
 def _time(fn, repeats: int = 5) -> float:
@@ -68,7 +68,7 @@ def main() -> int:
         lambda: bound_path(V, P, Q, a, param="kappa", n_grid=17),
     )
 
-    p = sachs_binary_iv(seed=2)
+    p = binary_iv(seed=2)
     add(
         "IV+MSM lp",
         lambda: bound(

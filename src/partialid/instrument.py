@@ -1,4 +1,4 @@
-"""Instrument / R-side linear programs (Balke–Pearl, Sachs Conditions 1–4).
+"""Instrument / R-side linear programs (Balke–Pearl, WL–WR cut conditions).
 
 Optimizations (P1):
 - array-backed response tables (no per-call dict lookups)
@@ -140,10 +140,10 @@ def _instrument_budget_rows(
 def detect_instrument_split(
     diagram: CausalDiagram,
 ) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
-    """Return (instruments, r_side) if diagram looks like Sachs WL/WR, else None.
+    """Return (instruments, r_side) if diagram looks like a classic WL/WR instrument split, else None.
 
     Classic rule: unconfounded nodes = WL, bidirected nodes = WR.
-    See also :func:`detect_sachs_cut` for confounded-WL cuts (Prop. 8.4).
+    See also :func:`detect_wl_wr_cut` for confounded-WL cuts (Prop. 8.4).
     """
     if diagram.maximal_confounding:
         return None
@@ -155,7 +155,7 @@ def detect_instrument_split(
     r_side = tuple(n for n in diagram.nodes if n in bi_nodes)
     if not instruments or not r_side:
         return None
-    if not _valid_sachs_cut(diagram, instruments, r_side):
+    if not _valid_wl_wr_cut(diagram, instruments, r_side):
         return None
     has_edge_into_r = any(a in instruments and b in r_side for a, b in diagram.directed)
     if not has_edge_into_r:
@@ -163,12 +163,12 @@ def detect_instrument_split(
     return instruments, r_side
 
 
-def _valid_sachs_cut(
+def _valid_wl_wr_cut(
     diagram: CausalDiagram,
     wl: Sequence[str],
     wr: Sequence[str],
 ) -> bool:
-    """Sachs Conditions 1–2: directed cut WL→WR only; no bidirected edge across.
+    """WL–WR cut conditions: directed cut WL→WR only; no bidirected edge across.
 
     Also requires at least one directed WL→WR edge (rules out inert WL nodes).
     """
@@ -188,13 +188,13 @@ def _valid_sachs_cut(
     return True
 
 
-def detect_sachs_cut(
+def detect_wl_wr_cut(
     diagram: CausalDiagram,
     *,
     treatments: Sequence[str] | None = None,
     outcome: str | None = None,
 ) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
-    """Prop. 8.4 / Sachs Prop. 2 cut: (WL, WR) with linear R-side LP.
+    """Prop. 8.4 WL–WR cut: (WL, WR) with linear R-side LP.
 
     Unlike :func:`detect_instrument_split`, WL may itself be confounded.
     Prefers the valid cut whose WR is smallest (fewest nodes), among cuts that
@@ -225,7 +225,7 @@ def detect_sachs_cut(
             continue
         wr = tuple(n for n in nodes if n in d)
         wl = tuple(n for n in nodes if n not in d)
-        if _valid_sachs_cut(diagram, wl, wr):
+        if _valid_wl_wr_cut(diagram, wl, wr):
             candidates.append((wl, wr))
 
     # 3) WR = union of all districts that intersect must
@@ -237,7 +237,7 @@ def detect_sachs_cut(
         wr_set |= must
         wr = tuple(n for n in nodes if n in wr_set)
         wl = tuple(n for n in nodes if n not in wr_set)
-        if wl and _valid_sachs_cut(diagram, wl, wr):
+        if wl and _valid_wl_wr_cut(diagram, wl, wr):
             candidates.append((wl, wr))
 
     # Dedup and score: prefer smaller WR, then smaller type-ish proxy (|WR|)
@@ -365,7 +365,7 @@ class InstrumentTypeSpace:
         Interventions may target instruments (parents in WL) or R-side nodes.
         When ``do(X)`` sets an instrument parent, that override replaces the
         observational instrument cell for descendant evaluation (needed for
-        ATE/interventional queries with treatment in WL, e.g. Sachs §6.3).
+        ATE/interventional queries with treatment in WL, e.g. measurement-error graphs).
         """
         intervention = intervention or {}
         # map name -> current value index
@@ -483,20 +483,20 @@ def formulate_instrument(
     r_side: Sequence[str],
     assumptions: AssumptionSet | None = None,
 ):
-    """Build Balke–Pearl / Sachs R-side LP (sparse + aggregated)."""
+    """Build Balke–Pearl / instrument R-side LP (sparse + aggregated)."""
     from .formulate import LPData, _normalize_P
 
     ts = InstrumentTypeSpace.build(variables, diagram, instruments, r_side)
     notes = [f"instrument LP: I={list(instruments)}, R={list(r_side)}, raw_types={ts.n_types}"]
 
-    # Observational law may omit latent endogenous nodes in R (Sachs §6.3).
+    # Observational law may omit latent endogenous nodes in R (latent endogenous / measurement error).
     # Constraints are then on P(obs_R | I), with latent R coords marginalized.
     obs_r = tuple(v for v in ts.r_side if variables.is_observed(v))
     latent_r = tuple(v for v in ts.r_side if not variables.is_observed(v))
     if latent_r:
         notes.append(
             f"latent on R-side {list(latent_r)}; constraints use obs_R={list(obs_r)} "
-            f"(Sachs 2022 §6.3)"
+            f"(latent endogenous / measurement error)"
         )
     obs_ir = tuple(instruments) + obs_r
 

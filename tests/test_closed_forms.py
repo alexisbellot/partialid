@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from partialid import Assumptions, Query, Variables, bound
 from partialid.closed_forms import msm_closed_form_re1, try_closed_form
-from partialid.problems import sachs_binary_iv
+from partialid.problems import binary_iv
 
 RE1_P = {(0, 0): 0.30, (0, 1): 0.20, (1, 0): 0.15, (1, 1): 0.35}
 
@@ -39,7 +39,7 @@ def test_closed_unavailable():
 
 
 def test_try_closed_iv():
-    p = sachs_binary_iv(seed=2)
+    p = binary_iv(seed=2)
     cfr = try_closed_form(p.variables, p.data, p.query, p.assumptions)
     assert cfr is not None
     r = bound(p.variables, p.data, p.query, p.assumptions, method="closed")

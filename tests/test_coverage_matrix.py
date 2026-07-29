@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from partialid import Assumptions, CausalDiagram, Query, Variables, bound
-from partialid.problems import sachs_binary_iv
+from partialid.problems import binary_iv
 
 RE1 = {(0, 0): 0.30, (0, 1): 0.20, (1, 0): 0.15, (1, 1): 0.35}
 
@@ -66,7 +66,7 @@ def test_coverage_order_only(name, assumptions, query_factory, expect_tight):
 
 
 def test_coverage_iv_and_iv_msm():
-    p = sachs_binary_iv(seed=2)
+    p = binary_iv(seed=2)
     r0 = bound(p.variables, p.data, p.query, p.assumptions, method="auto")
     assert r0.success and r0.tight
     # Conditional LR-MSM on IV can refute small Λ; Λ=3 is feasible on seed=2

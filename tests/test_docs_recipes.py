@@ -1,8 +1,7 @@
-"""CI checks for docs recipes and the MSM notebook."""
+"""CI checks for docs recipes and showcase notebooks."""
 
 from __future__ import annotations
 
-import runpy
 from pathlib import Path
 
 import pytest
@@ -48,9 +47,9 @@ def test_recipe_msm_path():
 
 
 def test_recipe_iv_monotone():
-    from partialid.problems import sachs_binary_iv
+    from partialid.problems import binary_iv
 
-    p = sachs_binary_iv(seed=2)
+    p = binary_iv(seed=2)
     r = bound(p.variables, p.data, p.query, Assumptions.iv("Z", "X", "Y"))
     assert r.success and r.tight
     # no-defiers can be infeasible for this SCM sample — document that path
@@ -86,10 +85,33 @@ def test_recipe_measurement_error():
     assert r.success and r.tight
 
 
-def test_msm_notebook_runs():
-    path = ROOT / "notebooks" / "msm_sensitivity.py"
-    runpy.run_path(str(path), run_name="__main__")
+def _exec_notebook(path: Path) -> None:
+    """Execute code cells in an ``.ipynb`` without requiring Jupyter."""
+    import json
 
+    nb = json.loads(path.read_text())
+    ns: dict = {"__name__": "__main__", "__file__": str(path)}
+    for i, cell in enumerate(nb.get("cells", [])):
+        if cell.get("cell_type") != "code":
+            continue
+        src = cell.get("source", "")
+        if isinstance(src, list):
+            src = "".join(src)
+        if not src.strip():
+            continue
+        try:
+            exec(compile(src, f"{path.name}:cell{i}", "exec"), ns)
+        except Exception as exc:  # pragma: no cover - surfaced in pytest
+            raise AssertionError(f"{path.name} cell {i} failed: {exc}") from exc
+
+
+@pytest.mark.parametrize(
+    "name",
+    sorted(p.name for p in (ROOT / "notebooks").glob("*.ipynb")),
+)
+def test_notebook_runs(name: str):
+    """All Jupyter notebooks under notebooks/ must execute cleanly."""
+    _exec_notebook(ROOT / "notebooks" / name)
 
 @pytest.mark.skipif(
     __import__("importlib").util.find_spec("mkdocs") is None,

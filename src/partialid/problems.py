@@ -1,4 +1,4 @@
-"""Literature problem catalog (Sachs 2023; Shridharan–Iyengar 2023).
+"""Literature problem catalog (IV, confounded exposure, multi-cause benchmarks).
 
 Pure-Python instances for wall-clock and correctness benchmarks.
 No R / causaloptim dependency.
@@ -74,12 +74,12 @@ def _iv_data_from_scm(
 
 
 # ---------------------------------------------------------------------------
-# Sachs et al. (JCGS 2023)
+# Confounded exposure & instruments
 # ---------------------------------------------------------------------------
 
 
-def sachs_ternary_exposure(*, seed: int = 0) -> Problem:
-    """Sachs §6.1: ternary confounded exposure X∈{0,1,2}, binary Y.
+def ternary_exposure(*, seed: int = 0) -> Problem:
+    """Ternary confounded exposure X∈{0,1,2}, binary Y.
 
     Query P(Y=1 | do(X=1)). Under maximal confounding, Manski:
     width = 1 - P(X=1).
@@ -95,8 +95,8 @@ def sachs_ternary_exposure(*, seed: int = 0) -> Problem:
     Q = Query.interventional(outcome="Y", do={"X": 1}, value=1)
     a = Assumptions.order("X", "Y")
     return Problem(
-        name="sachs_ternary_exposure",
-        source="Sachs et al. JCGS 2023 §6.1",
+        name="ternary_exposure",
+        source="ternary confounded exposure",
         variables=V,
         data=data,
         query=Q,
@@ -106,7 +106,7 @@ def sachs_ternary_exposure(*, seed: int = 0) -> Problem:
     )
 
 
-def sachs_ternary_cardinalities(card_x: int = 4, card_y: int = 2, *, seed: int = 1) -> Problem:
+def ternary_cardinalities(card_x: int = 4, card_y: int = 2, *, seed: int = 1) -> Problem:
     """Higher-cardinality variant of the confounded exposure example."""
     V = Variables.from_mapping({"X": tuple(range(card_x)), "Y": tuple(range(card_y))})
     keys = V.cells(["X", "Y"])
@@ -116,8 +116,8 @@ def sachs_ternary_cardinalities(card_x: int = 4, card_y: int = 2, *, seed: int =
     px = sum(v for (x, y), v in data.items() if x == do_x)
     Q = Query.interventional(outcome="Y", do={"X": do_x}, value=do_y)
     return Problem(
-        name=f"sachs_card_X{card_x}_Y{card_y}",
-        source="Sachs-style higher cardinality",
+        name=f"card_X{card_x}_Y{card_y}",
+        source="Higher-cardinality confounded exposure",
         variables=V,
         data=data,
         query=Q,
@@ -126,7 +126,7 @@ def sachs_ternary_cardinalities(card_x: int = 4, card_y: int = 2, *, seed: int =
     )
 
 
-def sachs_binary_iv(*, seed: int = 2) -> Problem:
+def binary_iv(*, seed: int = 2) -> Problem:
     """Classic binary IV: Z→X→Y with X↔Y confounding (Balke–Pearl)."""
     V = Variables.from_binary("Z", "X", "Y")
     g = CausalDiagram.from_edges(
@@ -138,8 +138,8 @@ def sachs_binary_iv(*, seed: int = 2) -> Problem:
     data = _iv_data_from_scm(V, g, ("Z",), ("X", "Y"), seed=seed)
     Q = Query.interventional(outcome="Y", do={"X": 1}, value=1)
     return Problem(
-        name="sachs_binary_iv",
-        source="Balke–Pearl / Sachs IV",
+        name="binary_iv",
+        source="Balke–Pearl binary IV",
         variables=V,
         data=data,
         query=Q,
@@ -148,8 +148,8 @@ def sachs_binary_iv(*, seed: int = 2) -> Problem:
     )
 
 
-def sachs_two_instruments(*, seed: int = 3) -> Problem:
-    """Sachs §6.2: two binary instruments Z1,Z2 → X → Y, X↔Y confounded."""
+def two_instruments(*, seed: int = 3) -> Problem:
+    """Two binary instruments Z1,Z2 → X → Y, X↔Y confounded."""
     V = Variables.from_binary("Z1", "Z2", "X", "Y")
     g = CausalDiagram.from_edges(
         nodes=["Z1", "Z2", "X", "Y"],
@@ -160,17 +160,17 @@ def sachs_two_instruments(*, seed: int = 3) -> Problem:
     data = _iv_data_from_scm(V, g, ("Z1", "Z2"), ("X", "Y"), seed=seed)
     Q = Query.interventional(outcome="Y", do={"X": 1}, value=1)
     return Problem(
-        name="sachs_two_instruments",
-        source="Sachs et al. JCGS 2023 §6.2",
+        name="two_instruments",
+        source="two-instrument IV",
         variables=V,
         data=data,
         query=Q,
         assumptions=Assumptions.from_diagram(g),
-        notes="64 R-side response parameters in Sachs write-up",
+        notes="64 R-side response parameters for binary instruments",
     )
 
 
-def sachs_two_instruments_card(
+def two_instruments_card(
     card_z: int = 3,
     card_x: int = 2,
     card_y: int = 2,
@@ -198,8 +198,8 @@ def sachs_two_instruments_card(
         value=1 if card_y > 1 else 0,
     )
     return Problem(
-        name=f"sachs_two_iv_Z{card_z}",
-        source="Sachs §6.2 higher-card instruments",
+        name=f"two_iv_Z{card_z}",
+        source="Higher-card two-instrument IV",
         variables=V,
         data=data,
         query=Q,
@@ -219,7 +219,7 @@ def shridharan_running_iv(*, seed: int = 5) -> Problem:
     numeric target (same LP family); the conditional-on-Z query is a linear
     functional of the same type distribution.
     """
-    return sachs_binary_iv(seed=seed)._replace_name(
+    return binary_iv(seed=seed)._replace_name(
         "shridharan_fig2_iv", "Shridharan–Iyengar 2023 Fig. 2"
     )
 
@@ -315,11 +315,11 @@ def chain_order_only(n: int, card: int = 2, *, seed: int = 7) -> Problem:
 def all_literature_problems() -> list[Problem]:
     """Default catalog for benchmarks (keeps mid-size instances)."""
     return [
-        sachs_ternary_exposure(),
-        sachs_ternary_cardinalities(4, 2),
-        sachs_ternary_cardinalities(3, 3),
-        sachs_binary_iv(),
-        sachs_two_instruments(),
+        ternary_exposure(),
+        ternary_cardinalities(4, 2),
+        ternary_cardinalities(3, 3),
+        binary_iv(),
+        two_instruments(),
         shridharan_multi_treatment(2, 2),  # T0,T1,Y — manageable type count
         chain_order_only(3, 2),
         chain_order_only(4, 2),

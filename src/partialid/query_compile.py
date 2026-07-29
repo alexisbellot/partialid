@@ -12,7 +12,7 @@ Preprocessing pipeline (each step is cited):
    Observational denominators with known mass under ``P`` yield a
    *fixed-denominator* linear objective (Tian–Pearl PN/PS). Otherwise we
    emit a linear-fractional pair ``(c_num, c_den)``.
-4. **Unnested atom → type coefficient** — Sachs et al. (2022) Prop. 3:
+4. **Unnested atom → type coefficient** — unnested response-type atoms (Prop. 3):
    an atomic (unnested) query is ``αᵀ q`` on response types.
 """
 
@@ -110,7 +110,7 @@ def unnest_po_event(
     # Also treat parent_key as being set by natural intervention of x_var
     an = _ancestors_in_mutilated(diagram, po.var, flat_intervened)
     if x_var not in an and x_var != po.var:
-        # Soft note: still expand (Sachs-style path eval would also work);
+        # Soft note: still expand (response-type path eval would also work);
         # warn that CUT's stated side-condition may fail.
         notes.append(
             f"CUT expansion of {po.describe()}: {x_var} not in An({po.var}) "
@@ -213,7 +213,7 @@ def _eval_flat_po(
 
 
 def atom_holds(ts: TypeSpace, type_idx: int, atom: Atom) -> bool:
-    """Whether an *unnested* atom holds for a response type (Sachs Prop. 3)."""
+    """Whether an *unnested* atom holds for a response type (Prop. 3)."""
     for lit in atom.lits:
         if isinstance(lit.expr, str):
             world = evaluate_world(

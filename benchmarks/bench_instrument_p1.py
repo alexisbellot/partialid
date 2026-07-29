@@ -8,7 +8,7 @@ import time
 
 from partialid import bound
 from partialid.formulate import formulate
-from partialid.problems import sachs_binary_iv, sachs_two_instruments, sachs_two_instruments_card
+from partialid.problems import binary_iv, two_instruments, two_instruments_card
 
 
 def _med(fn, n=5, warmup=1):
@@ -43,9 +43,9 @@ def report(name, p, repeats=5):
 def main():
     print("Instrument LP P1 benchmark (array + sparse + aggregate)")
     rows = [
-        report("binary_iv", sachs_binary_iv(seed=2)),
-        report("two_iv_Z2", sachs_two_instruments(seed=3)),
-        report("two_iv_Z3", sachs_two_instruments_card(card_z=3, seed=15), repeats=3),
+        report("binary_iv", binary_iv(seed=2)),
+        report("two_iv_Z2", two_instruments(seed=3)),
+        report("two_iv_Z3", two_instruments_card(card_z=3, seed=15), repeats=3),
     ]
     z3 = rows[-1]
     # Prior baseline ~5s on Z3; target ≥10× → ≤500ms

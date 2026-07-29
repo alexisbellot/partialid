@@ -1,6 +1,6 @@
 """Shridharan–Iyengar (JMLR 2023 / arXiv:2308.02709) Appendix B examples.
 
-Implements Examples A–G: Sachs-partition ADMGs, logit–Bernoulli DGPs with
+Implements Examples A–G: VA/VB-partition ADMGs, logit–Bernoulli DGPs with
 shared Gaussian latents (U_A, U_B), and the paper's conditional interventional
 queries. Joint tables are obtained by Monte Carlo integration over (U_A, U_B).
 """

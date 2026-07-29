@@ -134,6 +134,6 @@ def audit_bound(
     base.warnings = list(result.warnings)
     base.outer = (not result.tight) or any("outer" in n for n in result.notes)
     for n in result.notes:
-        if "Sachs" in n or "inert prune" in n or "instrument LP" in n or "c-degree" in n:
+        if "WL–WR" in n or "inert prune" in n or "instrument LP" in n or "c-degree" in n:
             base.cuts.append(n)
     return base
