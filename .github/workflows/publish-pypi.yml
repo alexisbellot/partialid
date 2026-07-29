@@ -1,0 +1,47 @@
+# Trusted Publishing to PyPI (production).
+# One-time setup: https://pypi.org/manage/account/publishing/
+#   Owner: alexisbellot
+#   Repo:  partialid
+#   Workflow: publish-pypi.yml
+#   Environment name: pypi
+#
+# Trigger: workflow_dispatch only (manual). Does not auto-publish on tags,
+# so TestPyPI dry-runs stay safe. After a successful TestPyPI upload, run
+# this workflow from the commit/tag you want on https://pypi.org/project/partialid/
+
+name: Publish to PyPI
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-publish:
+    name: Build and upload
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/partialid
+    permissions:
+      contents: read   # required for checkout (job perms replace workflow-level)
+      id-token: write  # Trusted Publishing
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
