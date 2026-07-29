@@ -26,6 +26,7 @@ jobs:
       name: testpypi
       url: https://test.pypi.org/p/partialid
     permissions:
+      contents: read   # required for checkout (job perms replace workflow-level)
       id-token: write  # Trusted Publishing
 
     steps:
