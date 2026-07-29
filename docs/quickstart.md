@@ -53,7 +53,8 @@ data = from_dataframe(pd.read_csv("table.csv"), columns=["X", "Y"])
 ```
 
 Runnable scripts: `examples/quickstart.py`, `examples/from_csv.py`.
-Showcase notebooks: `notebooks/quickstart.ipynb` and siblings under `notebooks/`.
+Showcase notebooks: see [`notebooks/README.md`](../notebooks/README.md)
+(`quickstart.ipynb`, `larger_systems.ipynb`, …).
 
 ## Next
 

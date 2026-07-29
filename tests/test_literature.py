@@ -7,12 +7,12 @@ import numpy as np
 from partialid import Assumptions, Query, Variables, bound
 from partialid.problems import (
     all_literature_problems,
-    chain_order_only,
     binary_iv,
+    chain_order_only,
+    shridharan_multi_treatment,
     ternary_cardinalities,
     ternary_exposure,
     two_instruments,
-    shridharan_multi_treatment,
 )
 
 

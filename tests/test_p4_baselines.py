@@ -13,8 +13,8 @@ from partialid.causaloptim_formulas import (
 )
 from partialid.problems import (
     binary_iv,
-    ternary_exposure,
     shridharan_multi_treatment,
+    ternary_exposure,
 )
 
 

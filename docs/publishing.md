@@ -58,7 +58,7 @@ Project page: https://test.pypi.org/project/partialid/
 
 This is what makes `pip install partialid` work for everyone.
 
-Workflow: [`.github/workflows/publish-pypi.yml`](../.github/workflows/publish-pypi.yml)
+Workflow: `.github/workflows/publish-pypi.yml`
 (**manual `workflow_dispatch` only** — tags do not auto-publish to production).
 
 1. Account on [pypi.org](https://pypi.org/).

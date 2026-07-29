@@ -113,6 +113,7 @@ def test_notebook_runs(name: str):
     """All Jupyter notebooks under notebooks/ must execute cleanly."""
     _exec_notebook(ROOT / "notebooks" / name)
 
+
 @pytest.mark.skipif(
     __import__("importlib").util.find_spec("mkdocs") is None,
     reason="mkdocs not installed",

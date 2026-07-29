@@ -87,7 +87,7 @@ r = bound(data.variables, data.P, Q, Assumptions.manski("X", "Y"))
 ```
 
 See `examples/quickstart.py`, `examples/from_csv.py`, and the showcase
-notebooks under `notebooks/` (`.ipynb`).
+notebooks under [`notebooks/`](notebooks/) (see [`notebooks/README.md`](notebooks/README.md)).
 
 ## Assumptions (catalog)
 

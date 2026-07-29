@@ -35,6 +35,8 @@ jobs:
           path: site
 
   deploy:
+    # Free GitHub Pages requires a public repo (or a paid plan).
+    if: ${{ !github.event.repository.private }}
     needs: build
     runs-on: ubuntu-latest
     environment:
