@@ -22,8 +22,9 @@ from .graph import CausalDiagram
 
 @dataclass(frozen=True)
 class OrderAssumption:
+    """Topological order under one latent on all listed nodes (Manski)."""
+
     order: tuple[str, ...]
-    maximal_confounding: bool = True
 
 
 @dataclass(frozen=True)
@@ -201,8 +202,7 @@ class AssumptionSet:
         if diags:
             return diags[0].diagram
         if orders:
-            o = orders[0]
-            return CausalDiagram.from_order(o.order, maximal_confounding=o.maximal_confounding)
+            return CausalDiagram.from_order(orders[0].order)
         return None
 
     def describe(self) -> list[str]:
@@ -224,23 +224,21 @@ class Assumptions:
         return AssumptionSet()
 
     @staticmethod
-    def order(*variables: str, maximal_confounding: bool = True) -> AssumptionSet:
-        """Known topological order (optionally maximal confounding)."""
-        return AssumptionSet(
-            (OrderAssumption(order=tuple(variables), maximal_confounding=maximal_confounding),)
-        )
+    def order(*variables: str) -> AssumptionSet:
+        """Known topological order with one latent on all variables (Manski).
+
+        Encoded as ``bidirected=[tuple(sorted(variables))]``. For a Markovian
+        order (no confounding), use ``diagram(..., bidirected=[])``.
+        """
+        return AssumptionSet((OrderAssumption(order=tuple(variables)),))
 
     @staticmethod
     def diagram(
         nodes: Sequence[str],
         directed: Iterable[tuple[str, str]] = (),
-        bidirected: Iterable[tuple[str, str]] = (),
-        *,
-        maximal_confounding: bool = False,
+        bidirected: Iterable[Sequence[str]] = (),
     ) -> AssumptionSet:
-        g = CausalDiagram.from_edges(
-            nodes, directed, bidirected, maximal_confounding=maximal_confounding
-        )
+        g = CausalDiagram.from_edges(nodes, directed, bidirected)
         return AssumptionSet((DiagramAssumption(diagram=g),))
 
     @staticmethod

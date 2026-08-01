@@ -38,7 +38,7 @@ interval.
 | `rosenbaum_gamma(treatment, Γ)` | Anchored Rosenbaum Γ (via Tan MSM) |
 | `c_dependence(treatment, c)` | Masten–Poirier \(c\)-dependence |
 | `margin_budget(κ)` | Soft independence / deviation from a reference margin |
-| `f_sensitivity(treatment, ρ, f=...)` | \(f\)-divergence sensitivity (`partialid[convex]`) |
+| `f_sensitivity(treatment, ρ, f=...)` | \(f\)-divergence sensitivity (CVXPY) |
 | `support_bound(k)` | At most \(k\) positive response types (MIP) |
 | `independence(*groups)` | Hard independence / c-split between groups |
 

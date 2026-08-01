@@ -20,7 +20,7 @@ def test_explicit_diagram_matches_order():
     V = Variables.from_binary("X", "Y")
     Q = Query.interventional(outcome="Y", do={"X": 1}, value=1)
     a_order = Assumptions.order("X", "Y")
-    g = CausalDiagram.from_order(["X", "Y"], maximal_confounding=True)
+    g = CausalDiagram.from_order(["X", "Y"])
     a_diag = Assumptions.from_diagram(g)
     r1 = bound(V, RE1_P, Q, a_order)
     r2 = bound(V, RE1_P, Q, a_diag)

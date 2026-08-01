@@ -494,9 +494,9 @@ def _prepare_xy_context(
     if diagram is None:
         orders = assumptions.of_type(OrderAssumption)
         if orders:
-            diagram = CausalDiagram.from_order(orders[0].order, maximal_confounding=True)
+            diagram = CausalDiagram.from_order(orders[0].order)
         else:
-            diagram = CausalDiagram.from_order(variables.names, maximal_confounding=True)
+            diagram = CausalDiagram.from_order(variables.names)
     V2, D2, _g2 = _inert_prune_order_only(variables, data, query, diagram, notes)
     return V2, D2, notes
 

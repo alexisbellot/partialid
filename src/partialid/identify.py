@@ -85,7 +85,6 @@ def _mutilate_do(g: CausalDiagram, intervened: Sequence[str]) -> CausalDiagram:
         nodes=g.nodes,
         directed=directed,
         bidirected=g.bidirected,
-        maximal_confounding=False,
     )
 
 
@@ -132,18 +131,18 @@ class _Prob:
 
 
 def _expand_latents(g: CausalDiagram) -> CausalDiagram:
+    """Expand each latent hyperedge to one exogenous node pointing to all members."""
     nodes = list(g.nodes)
     directed = list(g.directed)
-    for i, (a, b) in enumerate(g.bidirected):
+    for i, he in enumerate(g.bidirected):
         u = f"__U{i}"
         nodes.append(u)
-        directed.append((u, a))
-        directed.append((u, b))
+        for v in he:
+            directed.append((u, v))
     return CausalDiagram(
         nodes=tuple(nodes),
         directed=tuple(directed),
         bidirected=(),
-        maximal_confounding=False,
     )
 
 
@@ -195,7 +194,6 @@ def _valid_backdoor_set(g: CausalDiagram, treatment: str, outcome: str, z: set[s
         nodes=g_exp.nodes,
         directed=tuple((a, b) for a, b in g_exp.directed if a != treatment),
         bidirected=(),
-        maximal_confounding=False,
     )
     return not _d_connected(g_under, treatment, outcome, set(z))
 
@@ -232,8 +230,7 @@ def _front_door_mediators(g: CausalDiagram, treatment: str, outcome: str) -> set
     g_wo = CausalDiagram(
         nodes=tuple(n for n in g.nodes if n not in z),
         directed=directed_wo,
-        bidirected=tuple((a, b) for a, b in g.bidirected if a not in z and b not in z),
-        maximal_confounding=False,
+        bidirected=tuple(he for he in g.bidirected if not any(n in z for n in he)),
     )
     if treatment in g_wo.nodes and outcome in g_wo.nodes:
         if _has_directed_path(g_wo, treatment, outcome):
@@ -365,10 +362,15 @@ def try_identify(
 
     g = assumptions.diagram()
     assert g is not None
-    if g.maximal_confounding:
+    # Manski: one latent covering every node — never point-identified for do()
+    if (
+        len(g.nodes) > 1
+        and len(g.bidirected) == 1
+        and set(g.bidirected[0]) == set(g.nodes)
+    ):
         return IDResult(
             identified=False,
-            notes=["ID skipped: maximal_confounding diagram (single c-component)"],
+            notes=["ID skipped: single full-latent hyperedge (Manski / order-only)"],
             attempted=False,
             relevant_components=g.c_components(),
         )

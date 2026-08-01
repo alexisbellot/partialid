@@ -20,14 +20,10 @@ pass observational data, and get a sharp interval under those constraints.
 
 ```bash
 pip install partialid
-# optional:
-pip install 'partialid[data]'    # pandas / from_dataframe
-pip install 'partialid[fast]'    # highspy grids
-pip install 'partialid[convex]'  # f-sensitivity
-pip install 'partialid[all]'
 ```
 
-Requires Python ≥ 3.10. Core: NumPy, SciPy.
+Requires Python ≥ 3.10. Dependencies: NumPy, SciPy, pandas, HiGHS (`highspy`),
+and CVXPY.
 
 ```bash
 pip install -e ".[dev]"   # contributors
@@ -81,7 +77,7 @@ from partialid import from_counts, from_records
 
 data = from_counts(("X", "Y"), {(0, 0): 30, (0, 1): 20, (1, 0): 15, (1, 1): 35})
 # or: data = from_records(("X", "Y"), rows)
-# or: from_dataframe(df, columns=["X", "Y"])  # needs partialid[data]
+# or: from_dataframe(df, columns=["X", "Y"])
 
 r = bound(data.variables, data.P, Q, Assumptions.manski("X", "Y"))
 ```
@@ -110,17 +106,6 @@ in pipelines. Details: [stability](docs/stability.md),
 [solvers (advanced)](docs/advanced/solvers.md).
 
 Advanced solver flags (`dual`, `colgen`, …) are optional; leave `method="auto"`.
-
-## Extras
-
-| Extra | Installs | Use |
-|---|---|---|
-| *(none)* | numpy, scipy | Core path |
-| `data` | pandas | `from_dataframe` |
-| `fast` | highspy | Faster grids / paths |
-| `convex` | cvxpy | `f_sensitivity` |
-| `dev` | pytest, ruff, … | Contributors |
-| `all` | data + fast + convex | Convenience |
 
 ## Docs
 

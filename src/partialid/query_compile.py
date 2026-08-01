@@ -19,6 +19,7 @@ Preprocessing pipeline (each step is cited):
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from collections.abc import Callable, Mapping
 from typing import Sequence
 
 import numpy as np
@@ -231,6 +232,56 @@ def atom_holds(ts: TypeSpace, type_idx: int, atom: Atom) -> bool:
         else:
             return False
     return True
+
+
+def atom_holds_via_eval(
+    evaluate: Callable[[Mapping[str, object] | None], Mapping[str, object]],
+    atom: Atom,
+) -> bool:
+    """Whether an *unnested* atom holds under a multi-world evaluator.
+
+    ``evaluate(intervention)`` returns the endogenous assignment under that
+    intervention (``None`` = observational). Used by factorized GPP builders
+    that are not a single :class:`TypeSpace`.
+    """
+    for lit in atom.lits:
+        if isinstance(lit.expr, str):
+            if evaluate(None)[lit.expr] != lit.value:
+                return False
+        elif isinstance(lit.expr, PO):
+            if not lit.expr.is_flat():
+                raise ValueError("internal: expected flat PO after CUT")
+            if evaluate(dict(lit.expr.assignment))[lit.expr.var] != lit.value:
+                return False
+        else:
+            return False
+    return True
+
+
+def lincomb_coeff_via_eval(
+    expr: Expr,
+    evaluate: Callable[[Mapping[str, object] | None], Mapping[str, object]],
+    *,
+    variables: Variables,
+    diagram: CausalDiagram,
+) -> float:
+    """Objective coefficient of a LinComb query for one factorized type.
+
+    Fractional (:class:`Cond`) queries are not supported on the GPP path.
+    """
+    notes: list[str] = []
+    unnested = unnest_expr(expr, variables, diagram, notes)
+    if isinstance(unnested, Cond):
+        raise NotImplementedError(
+            "GPP / latent-bilinear currently support LinComb queries only "
+            "(not fractional Cond / PN / PS)"
+        )
+    assert isinstance(unnested, LinComb)
+    total = 0.0
+    for coeff, atom in unnested.terms:
+        if atom_holds_via_eval(evaluate, atom):
+            total += float(coeff)
+    return total
 
 
 def _lincomb_coefficients(

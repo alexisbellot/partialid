@@ -4,13 +4,15 @@ Numeric partial identification for discrete SCMs in the **linear reduction**:
 face assumptions and **anchored** sensitivity budgets. Prefer
 `method="auto"` — see [Auto routing](../auto_routing.md).
 
-## In scope (LP / convex / MIP)
+## In scope (LP / convex / MIP / bilinear)
 
 - Order-only / maximal confounding (Manski)
 - Directed exclusions, MTR, no-defiers
 - Tan MSM, \(c\)-dependence, anchored Rosenbaum \(\Gamma\)
-- Margin budgets; \(f\)-sensitivity via CVXPY (`partialid[convex]`)
+- Margin budgets; \(f\)-sensitivity via CVXPY
 - Instrument R-side LPs; support bounds via MIP
+- **Bilinear GPP**: \(K=2\) free c-degree-1 districts (`gpp`) or one
+  c-degree-2 district with two latent hyperedges (`gpp/latent`)
 
 ## Out of core (workarounds)
 
@@ -20,6 +22,12 @@ face assumptions and **anchored** sensitivity budgets. Prefer
 | Raw MI / KL budgets | Transcendental | margin budget proxy |
 | Hard independence c-split | Factorization incomplete | merged outer / ID |
 | Large multi-district GPP | Polynomial | outer LP (`tight=False`) |
+| c-degree ≥3 in one district | Polynomial degree ≥3 | outer LP (`tight=False`) |
+
+Latent hyperedges: each `bidirected` tuple is one exogenous source. Pairwise
+`[("X","M"),("M","Y")]` is c-degree 2 (bilinear); `[("X","M","Y")]` is one
+latent (LP). No `maximal_confounding` flag — Manski is a full hyperedge
+`[tuple(nodes)]`. See [Graphs](../graphs.md#program-degree-which-solver).
 
 ## Algorithm sketch
 

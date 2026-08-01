@@ -33,7 +33,7 @@ def _estimate_joint_types(p) -> int:
     a = as_assumption_set(p.assumptions)
     g = a.diagram()
     if g is None:
-        g = CausalDiagram.from_order(p.variables.names, maximal_confounding=True)
+        g = CausalDiagram.from_order(p.variables.names)
     n = 1
     for v in g.topological_order():
         parents = list(g.parents(v))

@@ -304,7 +304,7 @@ def _lazy_colgen_trigger(*, quick: bool) -> list[BenchRow]:
     names = [f"X{i}" for i in range(n)]
     V = Variables.from_binary(*names)
     directed = [(names[i], names[i + 1]) for i in range(n - 1)]
-    g = CausalDiagram.from_edges(names, directed=directed, maximal_confounding=True)
+    g = CausalDiagram.from_edges(names, directed=directed, bidirected=[tuple(names)])
     a = Assumptions.from_diagram(g)
     lazy = LazyTypeSpace.from_diagram(V, g)
     est = lazy.n_types_est

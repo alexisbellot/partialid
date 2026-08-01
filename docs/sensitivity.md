@@ -87,7 +87,7 @@ for lam, r in bound_grid(
     print(lam, r.interval)
 ```
 
-Install `partialid[fast]` (highspy) for persistent HiGHS updates across the grid.
+Persistent HiGHS warm-starts across the grid use `highspy` (installed with the package).
 
 ## Next
 

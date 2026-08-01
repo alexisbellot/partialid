@@ -48,7 +48,6 @@ def test_measurement_error_monotone():
         ["X", "Y", "Y2"],
         directed=[("X", "Y"), ("Y", "Y2")],
         bidirected=[("Y", "Y2")],
-        maximal_confounding=False,
     )
     # P(X,Y2); p(Y2=0|X=0)=0.6, p(Y2=0|X=1)=0.3, P(X=1)=0.5
     P = {

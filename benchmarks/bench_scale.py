@@ -33,7 +33,7 @@ def _sparse_chain(n: int, seed: int = 0):
     names = [f"X{i}" for i in range(n)]
     V = Variables.from_binary(*names)
     directed = [(names[i], names[i + 1]) for i in range(n - 1)]
-    g = CausalDiagram.from_edges(names, directed, maximal_confounding=True)
+    g = CausalDiagram.from_edges(names, directed, bidirected=[tuple(names)])
     a = Assumptions.from_diagram(g)
     rng = np.random.default_rng(seed)
     cells = V.cells(names)

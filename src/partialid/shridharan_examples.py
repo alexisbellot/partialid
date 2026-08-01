@@ -101,7 +101,6 @@ def _problem(
         nodes=list(nodes),
         directed=list(directed),
         bidirected=bi,
-        maximal_confounding=False,
     )
     data = _mc_joint(order, logit_fn, n_mc=n_mc, seed=seed)
     Q = Query.interventional(

@@ -76,7 +76,6 @@ def test_recipe_measurement_error():
         ["X", "Y", "Y2"],
         directed=[("X", "Y"), ("Y", "Y2")],
         bidirected=[("Y", "Y2")],
-        maximal_confounding=False,
     )
     P = {(0, 0): 0.30, (0, 1): 0.20, (1, 0): 0.15, (1, 1): 0.35}
     Q = Query.ate(outcome="Y", treatment="X", y=1, t1=1, t0=0)

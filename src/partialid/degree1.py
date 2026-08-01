@@ -1,11 +1,11 @@
-"""c-degree-1 factorization (THEORY Prop. 8.4 / Thm 8.3).
+"""c-degree factorization (THEORY Prop. 8.4 / Thm 8.3).
 
-For ADMGs where every district is treated as c-degree 1 (one latent per
-bidirected component), the tight program is an LP on the *free* confounded
-district(s), with unconfounded districts absorbed into observational kernels.
+Each latent hyperedge is one exogenous source. Districts are connected
+components under hyperedge incidence. A district's c-degree is the number of
+hyperedges it contains.
 
-This generalizes the IV R-side LP: instruments / Markov kernels are exogenous;
-only districts that contain bidirected edges keep a free type distribution.
+When every free district has c-degree 1 and K≤1 (or a WL–WR cut applies), the
+tight program is an LP. Higher ∑ c-degrees need bilinear / polynomial solvers.
 """
 
 from __future__ import annotations
@@ -33,99 +33,115 @@ def induced_subgraph(g: CausalDiagram, nodes: Iterable[str]) -> CausalDiagram:
     return CausalDiagram(
         nodes=tuple(n for n in g.nodes if n in keep),
         directed=tuple((a, b) for a, b in g.directed if a in keep and b in keep),
-        bidirected=tuple((a, b) for a, b in g.bidirected if a in keep and b in keep),
-        maximal_confounding=False,
+        bidirected=tuple(he for he in g.bidirected if set(he) <= keep),
     )
 
 
 def district_has_confounding(g: CausalDiagram, district: frozenset[str]) -> bool:
-    for a, b in g.bidirected:
-        if a in district and b in district:
-            return True
-    return False
+    return len(g.latent_hyperedges_in(district)) > 0
 
 
 def c_degree_upper_bound(g: CausalDiagram, district: frozenset[str]) -> int:
-    """Upper bound on c-degree for a district in a latent-projection ADMG.
-
-    We treat a connected bidirected component as arising from a *single* latent
-    (c-degree 1). Singletons have c-degree 1 (own exogenous noise). This is the
-    standard reading of pairwise ADMGs; graphs needing c-degree ≥2 require
-    richer latent structure than pairwise bidirected edges.
-    """
-    if len(district) <= 1:
-        return 1
-    if district_has_confounding(g, district):
-        return 1
-    return 1
+    """c-degree = number of latent hyperedges in the district."""
+    return g.c_degree(district)
 
 
 def all_districts_c_degree_1(g: CausalDiagram) -> bool:
-    return all(c_degree_upper_bound(g, d) <= 1 for d in g.c_components())
+    return all(
+        (not district_has_confounding(g, d)) or c_degree_upper_bound(g, d) <= 1
+        for d in g.c_components()
+    )
 
 
 @dataclass(frozen=True)
 class Degree1Factorization:
-    """Result of c-degree-1 analysis for an interventional query."""
+    """Result of free-block analysis for an interventional or counterfactual query."""
 
     ancestral: frozenset[str]
     districts: tuple[frozenset[str], ...]
     free_districts: tuple[frozenset[str], ...]
     exogenous: tuple[str, ...]
     notes: tuple[str, ...]
-    # True if Prop. 8.4 / Thm 8.3 LP reduction applies (≤1 free district)
     lp_reducible: bool
 
 
 def analyze_degree1(
     g: CausalDiagram,
     *,
-    treatments: Sequence[str],
-    outcome: str,
+    treatments: Sequence[str] | None = None,
+    outcome: str | None = None,
+    query: object | None = None,
 ) -> Degree1Factorization:
-    """Identify free confounded districts for Q=P(outcome|do(treatments))."""
-    notes: list[str] = []
-    if g.maximal_confounding:
-        return Degree1Factorization(
-            ancestral=frozenset(g.nodes),
-            districts=(frozenset(g.nodes),),
-            free_districts=(frozenset(g.nodes),),
-            exogenous=(),
-            notes=("maximal_confounding: single block",),
-            lp_reducible=True,
-        )
+    """Identify free districts for a query on ``g``.
 
-    # Ancestral set of outcome ∪ treatments (directed)
-    seeds = set(treatments) | {outcome}
+    Free districts are confounded blocks (latent hyperedges) in the ancestral
+    graph, plus unconfounded blocks that contain a *cross-world* variable
+    (PNS / PN / PS); see :mod:`partialid.query_footprint`.
+    """
+    notes: list[str] = []
+    cross_world: set[str] = set()
+
+    if query is not None:
+        from .query_footprint import extract_footprint
+
+        fp = extract_footprint(query, diagram=g)
+        notes.extend(list(fp.notes))
+        seeds = set(fp.all_vars)
+        cross_world = set(fp.cross_world_vars)
+        treatments = list(treatments) if treatments is not None else sorted(fp.intervention_vars)
+        outcome = outcome if outcome is not None else getattr(query, "outcome", None)
+        if outcome is not None:
+            seeds.add(str(outcome))
+        seeds |= set(treatments)
+    else:
+        if treatments is None or outcome is None:
+            raise TypeError("analyze_degree1 requires treatments+outcome, or query=")
+        seeds = set(treatments) | {outcome}
+
     ancestral = directed_ancestors(g, seeds)
-    # also include directed ancestors of treatments (instruments etc.)
-    ancestral |= directed_ancestors(g, treatments)
+    ancestral |= directed_ancestors(g, treatments or ())
     notes.append(f"ancestral={sorted(ancestral)}")
 
     g_an = induced_subgraph(g, ancestral)
     districts = tuple(g_an.c_components())
     notes.append(f"districts={[sorted(d) for d in districts]}")
+    notes.append(
+        "c_degrees=" + str({tuple(sorted(d)): g_an.c_degree(d) for d in districts})
+    )
 
-    if not all_districts_c_degree_1(g_an):
-        notes.append("c-degree>1 suspected; LP reduction not claimed")
+    free_list: list[frozenset[str]] = []
+    for d in districts:
+        if district_has_confounding(g_an, d):
+            free_list.append(d)
+        elif cross_world and any(v in cross_world for v in d):
+            free_list.append(d)
+            notes.append(f"cross-world free district {sorted(d)}")
+    free = tuple(free_list)
+    notes.append(f"free_districts={[sorted(d) for d in free]}")
+
+    # LP reduction only when every free block has c-degree ≤1 (cross-world
+    # unconfounded singletons count as degree 1) and K≤1.
+    free_cdeg_ok = all(
+        (not district_has_confounding(g_an, d)) or c_degree_upper_bound(g_an, d) <= 1
+        for d in free
+    )
+    if not free_cdeg_ok or not all_districts_c_degree_1(g_an):
+        notes.append(
+            f"c-degree>1 in free districts {[sorted(d) for d in free]}; "
+            "LP reduction not claimed"
+        )
+        exo = tuple(n for n in g_an.topological_order() if not any(n in d for d in free))
         return Degree1Factorization(
             ancestral=frozenset(ancestral),
             districts=districts,
-            free_districts=districts,
-            exogenous=(),
+            free_districts=free,
+            exogenous=exo,
             notes=tuple(notes),
             lp_reducible=False,
         )
 
-    # Free = confounded districts that intersect the query's ancestral set in G_{\bar x}
-    # Unconfounded districts are absorbed (kernels from data / ID).
-    free = tuple(d for d in districts if district_has_confounding(g_an, d))
-    # If outcome district is unconfounded but treatments confound something...
-    # Also: if there is no confounding anywhere, free is empty → point ID territory
-    notes.append(f"free_confounded={[sorted(d) for d in free]}")
-
     if len(free) > 1:
-        notes.append("≥2 free confounded districts: needs GPP or inequality completion")
+        notes.append("≥2 free districts: needs GPP or inequality completion")
         exo = tuple(n for n in g_an.topological_order() if not any(n in d for d in free))
         return Degree1Factorization(
             ancestral=frozenset(ancestral),
@@ -149,8 +165,7 @@ def analyze_degree1(
             lp_reducible=True,
         )
 
-    # No confounded district in ancestral graph
-    notes.append("no free confounded district (Markovian ancestral graph)")
+    notes.append("no free district (Markovian ancestral / single-world absorbed)")
     return Degree1Factorization(
         ancestral=frozenset(ancestral),
         districts=districts,
@@ -159,3 +174,9 @@ def analyze_degree1(
         notes=tuple(notes),
         lp_reducible=True,
     )
+
+
+def free_block_degree(g: CausalDiagram, district: frozenset[str]) -> int:
+    """Simplex-factor degree of a free district (≥1 for cross-world unconfounded)."""
+    cd = c_degree_upper_bound(g, district)
+    return cd if cd >= 1 else 1

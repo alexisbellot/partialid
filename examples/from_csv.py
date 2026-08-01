@@ -1,6 +1,6 @@
 """CSV / table → MSM bounds in a few lines.
 
-Uses the bundled counts file by default. With pandas (``partialid[data]``)::
+Uses the bundled counts file by default. With pandas::
 
     data = from_dataframe(pd.read_csv(path), columns=["X", "Y"])
 """
@@ -32,7 +32,7 @@ def main() -> None:
         print("loaded via from_dataframe", data.notes)
     except ImportError:
         data = _load_without_pandas(CSV)
-        print("loaded via from_records (install partialid[data] for DataFrames)")
+        print("loaded via from_records (pandas not installed)")
 
     # Equivalent aggregated table (RE1 proportions × 10)
     _ = from_counts(

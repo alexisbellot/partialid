@@ -92,7 +92,7 @@ def test_coverage_conditional():
 def test_coverage_markov_id():
     V, P = _xy()
     g = CausalDiagram.from_edges(
-        ["X", "Y"], directed=[("X", "Y")], bidirected=[], maximal_confounding=False
+        ["X", "Y"], directed=[("X", "Y")], bidirected=[]
     )
     r = bound(
         V,

@@ -17,12 +17,68 @@ a = Assumptions.from_diagram(g)
 # or Assumptions.diagram(nodes, directed=..., bidirected=...)
 ```
 
+`bidirected` entries are **latent hyperedges**: each tuple is one independent
+exogenous variable. There is no separate `maximal_confounding` flag — write the
+latent structure explicitly.
+
+| Writing | Meaning | Program (for typical `P(Y\|do(X))`) |
+|---|---|---|
+| `[("X", "Y")]` | one latent on `{X,Y}` | linear (degree 1) |
+| `[("X", "M"), ("M", "Y")]` | two latents | bilinear (degree 2) |
+| `[("X", "M", "Y")]` | one latent on all three | linear (degree 1) |
+| `[tuple(nodes)]` / `from_order` | one latent on everyone (Manski) | linear |
+| `[]` | no latent confounding | point ID / Markovian |
+
 With an **explicit diagram**, `bound` first tries identification (g-formula /
 back-door / front-door). When identified, you get a point interval
 (`method` starts with `id/`).
 
-Order-only problems (`Assumptions.order` / `manski`) skip ID and go straight to
-bounds under maximal confounding.
+`Assumptions.order("Z", "X", "Y")` is Manski: complete directed order plus
+`bidirected=[("Z","X","Y")]`.
+
+## Program degree (which solver?)
+
+Degree is derived from the GPP, not guessed: if free confounded districts have
+c-degrees \(d_C\) (# hyperedges each), then
+
+\[
+\text{degree} = \sum_C d_C
+\]
+
+(each hyperedge is one free simplex factor). Then:
+
+| Degree | Kind | Solver |
+|---|---|---|
+| 0 | point | ID / g-formula |
+| 1 | linear | fiber / LP / instrument |
+| 2 | bilinear/latent or bilinear/factor | `gpp/latent` or `gpp` |
+| ≥3 | polynomial | outer LP (`tight=False`) for now |
+
+```python
+from partialid import CausalDiagram, Query, classify_program
+
+g = CausalDiagram.from_edges(
+    ["X", "M", "Y"],
+    directed=[("X", "M"), ("M", "Y")],
+    bidirected=[("X", "M"), ("M", "Y")],
+)
+print(classify_program(g, treatments=["X"], outcome="Y"))
+# ProgramKind.BILINEAR_LATENT, degree=2
+
+# Counterfactuals: pass query= (cross-world vars become free blocks)
+g2 = CausalDiagram.from_edges(
+    ["X", "M", "Y"],
+    directed=[("X", "M"), ("M", "Y")],
+    bidirected=[("X", "M")],
+)
+print(classify_program(g2, query=Query.interventional(outcome="Y", do={"X": 1}, value=1)).kind)
+# linear
+print(classify_program(g2, query=Query.pns()).kind)
+# bilinear/factor
+```
+
+Worked examples live in the docstring of
+[`program_degree.py`](../src/partialid/program_degree.py).
 
 ## Instrumental variables
 
@@ -48,9 +104,9 @@ See [IV recipe](recipes/iv.md) for a complete runnable example.
 
 ## Tightness on diagrams
 
-Multi c-component problems may fall back to a merged-latent **outer** LP.
-Then `BoundResult.tight` is `False` and a warning is emitted. Always check
-`r.tight` in automated pipelines.
+Multi c-component / degree ≥3 problems may fall back to a merged-latent
+**outer** LP (`bidirected=[tuple(nodes)]`). Then `BoundResult.tight` is `False`
+and a warning is emitted. Always check `r.tight` in automated pipelines.
 
 ## Next
 

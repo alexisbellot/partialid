@@ -133,7 +133,6 @@ def binary_iv(*, seed: int = 2) -> Problem:
         nodes=["Z", "X", "Y"],
         directed=[("Z", "X"), ("X", "Y")],
         bidirected=[("X", "Y")],
-        maximal_confounding=False,
     )
     data = _iv_data_from_scm(V, g, ("Z",), ("X", "Y"), seed=seed)
     Q = Query.interventional(outcome="Y", do={"X": 1}, value=1)
@@ -155,7 +154,6 @@ def two_instruments(*, seed: int = 3) -> Problem:
         nodes=["Z1", "Z2", "X", "Y"],
         directed=[("Z1", "X"), ("Z2", "X"), ("X", "Y")],
         bidirected=[("X", "Y")],
-        maximal_confounding=False,
     )
     data = _iv_data_from_scm(V, g, ("Z1", "Z2"), ("X", "Y"), seed=seed)
     Q = Query.interventional(outcome="Y", do={"X": 1}, value=1)
@@ -245,15 +243,11 @@ def shridharan_multi_treatment(
     # chain among treatments optional; add T_i → T_{i+1}
     for i in range(len(t_names) - 1):
         directed.append((t_names[i], t_names[i + 1]))
-    bidirected = [(t_names[i], "Y") for i in range(len(t_names))]
-    bidirected += [
-        (t_names[i], t_names[j]) for i in range(len(t_names)) for j in range(i + 1, len(t_names))
-    ]
+    # Single latent on all treatments+Y (Manski-style block), not pairwise edges.
     g = CausalDiagram.from_edges(
         nodes=order,
         directed=directed,
-        bidirected=bidirected,
-        maximal_confounding=True,  # single U_B block
+        bidirected=[tuple(order)],
     )
     do = {t_names[0]: 1 if card > 1 else 0}
     Q = Query.interventional(outcome="Y", do=do, value=1)

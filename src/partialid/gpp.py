@@ -106,6 +106,25 @@ def _compositions(n: int, steps: int):
     yield from rec(steps, n)
 
 
+def _aggregate_i_rows(A: np.ndarray, c_obj: np.ndarray) -> tuple[np.ndarray, np.ndarray, int]:
+    """Merge i-indices with identical (A[:,i,:], c_obj[i,:])."""
+    n_cells, n1, n2 = A.shape
+    groups: dict[tuple, list[int]] = {}
+    for i in range(n1):
+        key = (A[:, i, :].tobytes(), c_obj[i, :].tobytes())
+        groups.setdefault(key, []).append(i)
+    if len(groups) == n1:
+        return A, c_obj, n1
+    n1a = len(groups)
+    Aa = np.zeros((n_cells, n1a, n2), dtype=float)
+    ca = np.zeros((n1a, n2), dtype=float)
+    for k, idxs in enumerate(groups.values()):
+        # identical columns: keep one (mass absorbed into q1)
+        Aa[:, k, :] = A[:, idxs[0], :]
+        ca[k, :] = c_obj[idxs[0], :]
+    return Aa, ca, n1a
+
+
 def _aggregate_j_columns(A: np.ndarray, c_obj: np.ndarray) -> tuple[np.ndarray, np.ndarray, int]:
     """Merge j-indices with identical (A[:,:,j], c_obj[:,j])."""
     n_cells, n1, n2 = A.shape
@@ -122,7 +141,7 @@ def _aggregate_j_columns(A: np.ndarray, c_obj: np.ndarray) -> tuple[np.ndarray, 
         # Representative column (identical within group)
         Aa[:, :, ja] = A[:, :, js[0]]
         ca[:, ja] = c_obj[:, js[0]]
-    return Aa, ca, n2
+    return Aa, ca, n2a
 
 
 def _to_sparse(A: np.ndarray, c_obj: np.ndarray) -> dict:
@@ -241,9 +260,13 @@ def build_gpp(
     *,
     notes: Sequence[str] | None = None,
 ) -> GPPData:
-    """Assemble sparse/aggregated A, c for a K=2 factorized GPP."""
-    if query.kind != "interventional":
-        raise NotImplementedError("GPP currently supports interventional queries")
+    """Assemble sparse/aggregated A, c for a K=2 factorized GPP.
+
+    Supports any :class:`~partialid.query_ast.LinComb` query (interventional,
+    ATE, PNS, …). Fractional Cond queries (PN/PS) are not supported here.
+    """
+    if query.expr is None:
+        raise ValueError("GPP requires query.expr")
     free = tuple(frozenset(d) for d in free_districts)
     if len(free) != 2:
         raise NotImplementedError(
@@ -287,26 +310,33 @@ def build_gpp(
         return out
 
     from .formulate import _normalize_P
+    from .query_compile import lincomb_coeff_via_eval
 
     cells, P = _normalize_P(variables, order, data)
     n_cells = len(cells)
     A = np.zeros((n_cells, n1, n2), dtype=float)
     c_obj = np.zeros((n1, n2), dtype=float)
-    intervention = dict(query.intervention)
-    outcome, value = query.outcome, query.value
     cell_index = {cell: k for k, cell in enumerate(cells)}
     for i in range(n1):
         for j in range(n2):
             tids = full_type_ids(i, j)
-            world = evaluate_world(order, response_fns, tids, diagram, None)
+
+            def _eval(
+                interv: Mapping[str, object] | None,
+                _tids: list[int] = tids,
+            ) -> dict[str, object]:
+                return evaluate_world(order, response_fns, _tids, diagram, interv)
+
+            world = _eval(None)
             cell = tuple(world[v] for v in order)
             A[cell_index[cell], i, j] += 1.0
-            world_do = evaluate_world(order, response_fns, tids, diagram, intervention)
-            if world_do[outcome] == value:
-                c_obj[i, j] += 1.0
+            c_obj[i, j] = lincomb_coeff_via_eval(
+                query.expr, _eval, variables=variables, diagram=diagram
+            )
 
-    n_raw_j = A.shape[2]
-    A, c_obj, n_agg = _aggregate_j_columns(A, c_obj)
+    n_raw_i, n_raw_j = A.shape[1], A.shape[2]
+    A, c_obj, n_agg_i = _aggregate_i_rows(A, c_obj)
+    A, c_obj, n_agg_j = _aggregate_j_columns(A, c_obj)
     # Nest over the smaller simplex
     if A.shape[2] > A.shape[1]:
         A = np.transpose(A, (0, 2, 1))
@@ -319,9 +349,10 @@ def build_gpp(
 
     note_list = list(notes or [])
     note_list.append(f"GPP bilinear K=2 blocks {[sorted(d) for d in free]} types=({n1},{n2})")
-    if n_agg < n_raw_j or (A.shape[2] != n_raw_j and n2 != n_raw_j):
+    if n_agg_i < n_raw_i or n_agg_j < n_raw_j:
         note_list.append(
-            f"GPP aggregated j-columns: raw≤{n_raw_j} → n2={n2} (sparse nnz_A={sp['a_val'].size})"
+            f"GPP aggregated types: raw=({n_raw_i},{n_raw_j}) → ({n1},{n2}) "
+            f"(sparse nnz_A={sp['a_val'].size})"
         )
     else:
         note_list.append(f"GPP sparse nnz_A={sp['a_val'].size} nnz_c={sp['c_val'].size}")
@@ -394,16 +425,129 @@ def _pack_simplex(theta: np.ndarray) -> np.ndarray:
     return e / e.sum()
 
 
+def _find_feasible_q2_nested(
+    gpp: GPPData,
+    rng: np.random.Generator,
+    *,
+    n_samples: int = 80,
+) -> list[np.ndarray]:
+    """Sample q2 and keep those for which the nested q1-LP is feasible."""
+    found: list[np.ndarray] = []
+    n2 = gpp.n2
+    candidates = [np.eye(n2)[j] for j in range(n2)]
+    candidates.extend(rng.dirichlet(np.ones(n2)) for _ in range(n_samples))
+    if n2 <= 6:
+        steps = 6
+        for comps in _compositions(n2, steps):
+            candidates.append(np.asarray(comps, dtype=float) / steps)
+    for q2 in candidates:
+        _, _, ok, _ = _lp_given_q2(gpp, q2, maximize=True, with_dual=False)
+        if ok:
+            found.append(np.asarray(q2, dtype=float) / float(np.sum(q2)))
+        if len(found) >= 12:
+            break
+    return found
+
+
+def _project_simplex_ls(
+    A_mat: np.ndarray,
+    b: np.ndarray,
+) -> tuple[np.ndarray | None, float]:
+    """Least-squares projection onto {q ≥ 0, 1ᵀq = 1} of A_mat q ≈ b."""
+    n = A_mat.shape[1]
+    # min ||A q - b||² s.t. 1ᵀq = 1, q ≥ 0  via LP on stacked residuals (approx: linprog on ℓ1)
+    # Use quadratic via scipy.optimize.lsq_linear when available; else linprog phase.
+    from scipy.optimize import lsq_linear
+
+    # Equality 1ᵀq=1 via substitution is awkward; use bounds + small equality penalty
+    # through augmented system solved by NNLS on free parameterization.
+    # Practical path: linprog feasibility of exact match first; else ℓ2 with equality.
+    res = linprog(
+        np.zeros(n),
+        A_eq=np.vstack([A_mat, np.ones((1, n))]),
+        b_eq=np.append(b, 1.0),
+        bounds=(0.0, None),
+        method="highs",
+    )
+    if res.success and res.x is not None:
+        q = np.asarray(res.x, dtype=float)
+        q = np.maximum(q, 0.0)
+        q /= q.sum()
+        return q, float(np.sum((A_mat @ q - b) ** 2))
+
+    # Soft: unconstrained NNLS on augmented [A; λ1ᵀ] q ≈ [b; λ]
+    lam = 10.0
+    A_aug = np.vstack([A_mat, lam * np.ones((1, n))])
+    b_aug = np.append(b, lam)
+    ls = lsq_linear(A_aug, b_aug, bounds=(0.0, np.inf), method="trf")
+    if not ls.success:
+        return None, float("inf")
+    q = np.asarray(ls.x, dtype=float)
+    s = q.sum()
+    if s <= 1e-15:
+        return None, float("inf")
+    q /= s
+    return q, float(np.sum((A_mat @ q - b) ** 2))
+
+
+def _find_feasible_q2_alternating(
+    gpp: GPPData,
+    rng: np.random.Generator,
+    *,
+    n_starts: int = 24,
+    n_iters: int = 40,
+) -> list[np.ndarray]:
+    """Alternating least-squares to recover a feasible factorized (q1, q2).
+
+    Random / grid sampling often misses thin feasible faces (e.g. Markov kernels
+    for a singleton district). ALS is cheap for small (n1, n2).
+    """
+    A, P = gpp.A, gpp.P_vec
+    n1, n2 = gpp.n1, gpp.n2
+    found: list[np.ndarray] = []
+    for _ in range(n_starts):
+        q1 = rng.dirichlet(np.ones(n1))
+        q2 = rng.dirichlet(np.ones(n2))
+        for _it in range(n_iters):
+            # Fix q2: A·q2 is (n_cells × n1)
+            A1 = np.tensordot(A, q2, axes=([2], [0]))
+            q1_new, r1 = _project_simplex_ls(A1, P)
+            if q1_new is None:
+                break
+            q1 = q1_new
+            # Fix q1: Aᵀ·q1 is (n_cells × n2)
+            A2 = np.tensordot(A, q1, axes=([1], [0]))
+            q2_new, r2 = _project_simplex_ls(A2, P)
+            if q2_new is None:
+                break
+            q2 = q2_new
+            if r2 <= 1e-14:
+                break
+        _, _, ok, _ = _lp_given_q2(gpp, q2, maximize=True, with_dual=False)
+        if ok:
+            found.append(np.asarray(q2, dtype=float) / float(np.sum(q2)))
+        if len(found) >= 8:
+            break
+    return found
+
+
 def _find_feasible_q2(
     gpp: GPPData,
     rng: np.random.Generator,
     *,
     n_starts: int = 40,
 ) -> list[np.ndarray]:
-    """Recover feasible q2 via multi-start LS on ||A:q1⊗q2 - P|| (feasibility only)."""
+    """Recover feasible q2 (nested sampling when n1 large; else multi-start LS)."""
+    n1, n2 = gpp.n1, gpp.n2
+    # L-BFGS on Δ^{n1}×Δ^{n2} is too expensive when n1 is hundreds (latent bilinear).
+    if n1 > 64 or n1 * n2 > 2000:
+        found = _find_feasible_q2_nested(gpp, rng)
+        if found:
+            return found
+        return _find_feasible_q2_alternating(gpp, rng)
+
     from scipy.optimize import minimize
 
-    n1, n2 = gpp.n1, gpp.n2
     A, P = gpp.A, gpp.P_vec
     found: list[np.ndarray] = []
 
@@ -429,7 +573,12 @@ def _find_feasible_q2(
         _, _, ok, _ = _lp_given_q2(gpp, q2, maximize=True, with_dual=False)
         if ok:
             found.append(q2)
-    return found
+    if found:
+        return found
+    found = _find_feasible_q2_nested(gpp, rng)
+    if found:
+        return found
+    return _find_feasible_q2_alternating(gpp, rng)
 
 
 def _optimize_spatial_bb(
@@ -470,9 +619,10 @@ def _optimize_spatial_bb(
     for i, j in list(combinations(range(n2), 2))[: min(80, n2 * 3)]:
         consider(0.5 * root[i] + 0.5 * root[j])
 
-    # Tiny: exhaustive composition grid (exact on the (1/M)-mesh; Lip certifies rest)
+    # Tiny outer simplex: seed from a composition grid, then spatial BB (below)
+    # for a true gap certificate. (Grid+Lip alone is often too loose for latent bilinear.)
     if n2 <= _GRID_CERT_N2:
-        steps = 12 if n2 <= 4 else (8 if n2 <= 6 else 5)
+        steps = 8 if (n2 <= 4 and gpp.n1 > 64) else (12 if n2 <= 4 else (8 if n2 <= 6 else 5))
         for comps in _compositions(n2, steps):
             consider(np.asarray(comps, dtype=float) / steps)
         if best_q1 is None or best_q2 is None:
@@ -483,14 +633,17 @@ def _optimize_spatial_bb(
                 False,
                 "no feasible q2",
             )
-        slack = L * (2.0 / steps)
-        return (
-            best_val,
-            best_q1,
-            best_q2,
-            True,
-            f"grid steps={steps} Lip={L:.4g} slack={slack:.2e}",
-        )
+        # For very small n2 and small n1, grid+Lip is enough (legacy factor-GPP path).
+        if n2 <= 4 and gpp.n1 <= 32:
+            slack = L * (2.0 / steps)
+            return (
+                best_val,
+                best_q1,
+                best_q2,
+                True,
+                f"grid steps={steps} Lip={L:.4g} slack={slack:.2e}",
+            )
+        # else: fall through to spatial BB with grid seeds already in best_*
 
     # High-dimensional outer simplex: seeded nested LP only (still no local NLP)
     if n2 > 16:
@@ -623,21 +776,28 @@ def _certified_opt(
             msg,
         )
 
-    if n2 <= _GRID_CERT_N2:
-        steps = 12 if n2 <= 4 else (8 if n2 <= 6 else 5)
+    # Spatial-BB gap certificate (preferred when present)
+    if "gap≈" in msg:
+        try:
+            gap = float(msg.split("gap≈")[1].split()[0])
+            certified = gap <= _BB_GAP * 50
+        except (IndexError, ValueError):
+            certified = False
+        slack = max(_BB_GAP, L * 1e-4) if certified else 0.0
+        cert_bound = (val + slack if maximize else val - slack) if certified else val
+        return val, q1, q2, certified, cert_bound, msg
+
+    # Legacy grid+Lip certificate (small factor-GPP blocks)
+    if n2 <= _GRID_CERT_N2 and "grid steps=" in msg:
+        try:
+            steps = int(msg.split("grid steps=")[1].split()[0])
+        except (IndexError, ValueError):
+            steps = 12 if n2 <= 4 else 5
         slack = L * (2.0 / steps)
         cert_bound = val + slack if maximize else val - slack
         return val, q1, q2, True, cert_bound, msg
 
-    certified = "gap≈" in msg
-    try:
-        gap = float(msg.split("gap≈")[1].split()[0])
-        certified = gap <= _BB_GAP * 50
-    except (IndexError, ValueError):
-        certified = False
-    slack = max(_BB_GAP, L * 1e-4) if certified else 0.0
-    cert_bound = (val + slack if maximize else val - slack) if certified else val
-    return val, q1, q2, certified, cert_bound, msg
+    return val, q1, q2, False, val, msg
 
 
 def solve_bounds_gpp(
@@ -680,6 +840,7 @@ def solve_bounds_gpp(
             lower = float(min(lo_att, lo_cert))
             upper = float(max(hi_att, hi_cert))
         else:
+            # Attained nested-LP bounds (may be slightly inner if certificate incomplete).
             lower = float(lo_att)
             upper = float(hi_att)
             cert_lo = cert_hi = False

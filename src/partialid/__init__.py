@@ -21,6 +21,7 @@ from .graph import CausalDiagram
 from .inference import BoundCIResult, bound_ci
 from .parametric import BoundPathResult, bound_path
 from .problems import Problem, all_literature_problems
+from .program_degree import ProgramDegree, ProgramKind, classify_program
 from .query import Query
 from .query_ast import PO, Atom, Cond, LinComb, Lit
 from .variables import Variables
@@ -54,6 +55,9 @@ __all__ = [
     "try_closed_form",
     "Problem",
     "all_literature_problems",
+    "ProgramKind",
+    "ProgramDegree",
+    "classify_program",
 ]
 
 

@@ -43,7 +43,7 @@ data = from_counts(
 r = bound(data.variables, data.P, Q, Assumptions.manski("X", "Y"))
 ```
 
-With pandas (`pip install 'partialid[data]'`):
+With pandas:
 
 ```python
 import pandas as pd

@@ -14,7 +14,7 @@ def _require_pandas():
         import pandas as pd
     except ImportError as e:  # pragma: no cover
         raise ImportError(
-            "from_dataframe requires pandas. Install with: pip install 'partialid[data]'"
+            "from_dataframe requires pandas. Install with: pip install partialid"
         ) from e
     return pd
 
@@ -194,7 +194,7 @@ def from_dataframe(
 ) -> ObservationalData:
     """Build an empirical law from a pandas DataFrame of discrete columns.
 
-    Requires the ``partialid[data]`` extra (pandas).
+    Requires pandas (installed with ``partialid``).
     """
     pd = _require_pandas()
     if not isinstance(df, pd.DataFrame):

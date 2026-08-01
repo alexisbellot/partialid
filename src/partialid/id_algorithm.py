@@ -72,9 +72,13 @@ def _districts(g: CausalDiagram, nodes: Iterable[str] | None = None) -> list[fro
         if ra != rb:
             parent[rb] = ra
 
-    for a, b in g.bidirected:
-        if a in node_set and b in node_set:
-            union(a, b)
+    for he in g.bidirected:
+        members = [n for n in he if n in node_set]
+        if len(members) < 2:
+            continue
+        root = members[0]
+        for n in members[1:]:
+            union(root, n)
     comps: dict[str, set[str]] = {}
     for n in node_set:
         comps.setdefault(find(n), set()).add(n)
@@ -110,8 +114,7 @@ def _subgraph(g: CausalDiagram, nodes: Iterable[str]) -> CausalDiagram:
     return CausalDiagram(
         nodes=tuple(n for n in g.nodes if n in keep),
         directed=tuple((a, b) for a, b in g.directed if a in keep and b in keep),
-        bidirected=tuple((a, b) for a, b in g.bidirected if a in keep and b in keep),
-        maximal_confounding=False,
+        bidirected=tuple(he for he in g.bidirected if set(he) <= keep),
     )
 
 
@@ -149,9 +152,6 @@ def identify(
     outcomes: Sequence[str],
 ) -> IDExpr | IDFail:
     """Return an identifying expression for P(outcomes | do(treatments)), or fail."""
-    if g.maximal_confounding and len(g.nodes) > 1 and not g.bidirected:
-        # treat as one district
-        pass
     return _id(
         g,
         frozenset(treatments),
@@ -189,7 +189,6 @@ def _id(
         nodes=gV.nodes,
         directed=directed_bar,
         bidirected=gV.bidirected,
-        maximal_confounding=False,
     )
     an_bar = _ancestors(g_bar, Y)
     W = (V - X) - an_bar

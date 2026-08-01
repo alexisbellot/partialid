@@ -41,17 +41,12 @@ classifiers = [
 dependencies = [
   "numpy>=1.24",
   "scipy>=1.10",
+  "pandas>=2.0",
+  "highspy>=1.5",
+  "cvxpy>=1.4",
 ]
 
 [project.optional-dependencies]
-fast = ["highspy>=1.5"]
-convex = ["cvxpy>=1.4"]
-data = ["pandas>=2.0"]
-all = [
-  "highspy>=1.5",
-  "cvxpy>=1.4",
-  "pandas>=2.0",
-]
 docs = [
   "mkdocs>=1.6",
   "mkdocs-material>=9.5",

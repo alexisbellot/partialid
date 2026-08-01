@@ -35,8 +35,13 @@ Special assumption classes force other paths earlier:
 | Hint | When |
 |---|---|
 | `mip` | `support_bound(k)` |
-| `convex` | `f_sensitivity` (needs `partialid[convex]`) |
-| `gpp` / `fractional` | multi-district / conditional ratio programs |
+| `convex` | `f_sensitivity` (CVXPY) |
+| `gpp` | \(K=2\) free c-degree-1 districts (factor bilinear) |
+| `gpp/latent` | one district with c-degree 2 (two latent hyperedges) |
+| `fractional` | conditional ratio programs |
+
+Diagram program class (before numeric solve) is summarized by
+`classify_program` — see [Graphs](graphs.md#program-degree-which-solver).
 
 ## What you should do
 

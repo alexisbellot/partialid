@@ -145,12 +145,9 @@ def detect_instrument_split(
     Classic rule: unconfounded nodes = WL, bidirected nodes = WR.
     See also :func:`detect_wl_wr_cut` for confounded-WL cuts (Prop. 8.4).
     """
-    if diagram.maximal_confounding:
-        return None
-    bi_nodes = set()
-    for a, b in diagram.bidirected:
-        bi_nodes.add(a)
-        bi_nodes.add(b)
+    bi_nodes: set[str] = set()
+    for he in diagram.bidirected:
+        bi_nodes.update(he)
     instruments = tuple(n for n in diagram.nodes if n not in bi_nodes)
     r_side = tuple(n for n in diagram.nodes if n in bi_nodes)
     if not instruments or not r_side:
@@ -177,8 +174,9 @@ def _valid_wl_wr_cut(
         return False
     if wl_s | wr_s != set(diagram.nodes) or wl_s & wr_s:
         return False
-    for a, b in diagram.bidirected:
-        if (a in wl_s) ^ (b in wl_s):
+    for he in diagram.bidirected:
+        sides = {n in wl_s for n in he if n in wl_s or n in wr_s}
+        if len(sides) > 1:
             return False
     for a, b in diagram.directed:
         if a in wr_s and b in wl_s:
@@ -200,8 +198,6 @@ def detect_wl_wr_cut(
     Prefers the valid cut whose WR is smallest (fewest nodes), among cuts that
     contain ``outcome`` and all ``treatments`` in WR when provided.
     """
-    if diagram.maximal_confounding:
-        return None
     nodes = list(diagram.topological_order())
     must: set[str] = set()
     if outcome is not None:

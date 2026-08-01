@@ -55,7 +55,7 @@ def solve_bounds_convex(lp: LPData) -> ConvexBounds:
     if not cvxpy_available():
         raise ImportError(
             "f-sensitivity (kl/chi2/tv) requires cvxpy. "
-            "Install with: pip install 'partialid[convex]'"
+            "Install with: pip install partialid"
         )
 
     import cvxpy as cp

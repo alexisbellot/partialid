@@ -55,8 +55,8 @@ Method = Literal[
 
 def _select_auto_method(lp) -> str:
     """Track A2: fiber → dual-sized lp → colgen → dense lp."""
-    if lp.method_hint in ("mip", "convex", "gpp", "fractional"):
-        return lp.method_hint
+    if lp.method_hint in ("mip", "convex", "gpp", "gpp/latent", "fractional"):
+        return "gpp" if lp.method_hint.startswith("gpp") else lp.method_hint
     if getattr(lp, "c_den", None) is not None:
         return "fractional"
     if is_fiber_separable(lp):
@@ -224,7 +224,7 @@ def bound(
         if diagram0 is None:
             orders = assumptions.of_type(OrderAssumption)
             if orders:
-                diagram0 = CausalDiagram.from_order(orders[0].order, maximal_confounding=True)
+                diagram0 = CausalDiagram.from_order(orders[0].order)
         variables, data, query, assumptions = apply_pretreatment_condition(
             variables, data, query, diagram0, notes_pre, assumptions
         )
@@ -451,13 +451,15 @@ def bound(
         use = "lp"
     force_dual = method == "dual"
 
-    if use == "gpp" or (lp.method_hint == "gpp" and method in ("auto", "gpp", "lp")):
+    gpp_hint = lp.method_hint in ("gpp", "gpp/latent")
+    if use == "gpp" or (gpp_hint and method in ("auto", "gpp", "lp")):
         from .gpp import solve_bounds_gpp
 
         if lp.gpp is None:
             raise ValueError("method='gpp' requires a factorized GPP formulation")
         gb = solve_bounds_gpp(lp.gpp)
         t2 = perf_counter()
+        method_tag = "gpp/latent" if lp.method_hint == "gpp/latent" else "gpp"
         if not gb.success:
             t_fb0 = perf_counter()
             lp_outer = formulate(
@@ -498,7 +500,7 @@ def bound(
                 lower=gb.lower,
                 upper=gb.upper,
                 width=(gb.upper - gb.lower) if gb.success else float("nan"),
-                method="gpp",
+                method=method_tag,
                 success=gb.success,
                 message=gb.message,
                 formulate_time=t1 - t0,
@@ -690,7 +692,7 @@ def bound_grid(
     highspy_note = (
         None
         if use_highspy or not warm_start
-        else "highspy_unavailable; install partialid[fast] for persistent HiGHS grids"
+        else "highspy_unavailable; install partialid for persistent HiGHS grids"
     )
     if use_highspy:
         # Ascending budgets keep the previous basis closer to feasible/optimal

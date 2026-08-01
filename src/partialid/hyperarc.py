@@ -49,16 +49,11 @@ def _estimate_raw_types(variables: Variables, diagram: CausalDiagram, vb: Sequen
 def _bidirected_component(diagram: CausalDiagram, seed: str) -> set[str]:
     """Undirected connected component of ``seed`` in the bidirected graph."""
     adj: dict[str, set[str]] = {n: set() for n in diagram.nodes}
-    if diagram.maximal_confounding:
-        nodes = list(diagram.nodes)
-        for i, a in enumerate(nodes):
-            for b in nodes[i + 1 :]:
+    for he in diagram.bidirected:
+        for i, a in enumerate(he):
+            for b in he[i + 1 :]:
                 adj[a].add(b)
                 adj[b].add(a)
-    else:
-        for a, b in diagram.bidirected:
-            adj[a].add(b)
-            adj[b].add(a)
     seen = {seed}
     stack = [seed]
     while stack:

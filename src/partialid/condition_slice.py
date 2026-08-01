@@ -93,24 +93,18 @@ def apply_pretreatment_condition(
         if isinstance(atom, OrderAssumption):
             new_order = tuple(n for n in atom.order if n in keep)
             if new_order:
-                new_atoms.append(
-                    OrderAssumption(
-                        order=new_order,
-                        maximal_confounding=atom.maximal_confounding,
-                    )
-                )
+                new_atoms.append(OrderAssumption(order=new_order))
         elif isinstance(atom, DiagramAssumption):
             g = atom.diagram
             nodes = tuple(n for n in g.nodes if n in keep)
             directed = tuple((u, v) for u, v in g.directed if u in keep and v in keep)
-            bidirected = tuple((u, v) for u, v in g.bidirected if u in keep and v in keep)
+            bidirected = tuple(he for he in g.bidirected if set(he) <= keep)
             new_atoms.append(
                 DiagramAssumption(
                     diagram=CausalDiagram(
                         nodes=nodes,
                         directed=directed,
                         bidirected=bidirected,
-                        maximal_confounding=g.maximal_confounding,
                     )
                 )
             )

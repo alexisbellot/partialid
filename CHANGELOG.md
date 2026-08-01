@@ -6,6 +6,25 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versioning follows [SemVer](https://semver.org/) (0.x API may evolve; see
 [`docs/stability.md`](docs/stability.md)).
 
+## [Unreleased]
+
+### Added
+- Latent **hyperedges** in `CausalDiagram.bidirected` (pairs or larger tuples):
+  each hyperedge is one exogenous source. Program-degree classifier
+  (`classify_program`) routes LP vs bilinear (`gpp` / `gpp/latent`) vs
+  polynomial outer from \(\sum d_C\). Sharp nested-LP solver for c-degree-2.
+- `classify_program` / bilinear–GPP routing accept **counterfactual** LinComb
+  queries (PNS, ATE, …): cross-world variables become free blocks (e.g. mediated
+  `X↔M→Y` is linear for `P(Y|do(X))` and bilinear/factor for PNS).
+
+### Changed
+- Single install: `pip install partialid` now includes pandas, HiGHS (`highspy`),
+  and CVXPY. Removed the `data` / `fast` / `convex` / `all` extras.
+- Removed `maximal_confounding`. Manski / order-only is
+  `bidirected=[tuple(nodes)]` (also what `from_order` / `Assumptions.order` emit).
+- Pairwise bidirected chains (e.g. `X↔M`, `M↔Y`) are c-degree 2 (bilinear).
+  Use `bidirected=[("X","M","Y")]` for one shared latent.
+
 ## [0.1.0a4] — 2026-07-27
 
 ### Changed
@@ -37,6 +56,7 @@ versioning follows [SemVer](https://semver.org/) (0.x API may evolve; see
 - Core API: `Variables`, `Query`, `Assumptions`, `bound`, `bound_grid`, `bound_path`.
 - BSD-3-Clause license, packaging metadata, CI, and sdist inclusion policy.
 - Optional extras: `fast` (highspy), `convex` (cvxpy), `data` (pandas; helpers in Phase 2).
+  *(Superseded: these are core dependencies as of Unreleased.)*
 
 ### Notes
 - 0.x pre-release: public API may change before 0.1.0.

@@ -18,13 +18,10 @@ budget — they are optional, not required.
 
 ```bash
 pip install partialid
-# optional extras
-pip install 'partialid[data]'     # pandas / from_dataframe
-pip install 'partialid[fast]'     # highspy warm grids
-pip install 'partialid[convex]'   # f-sensitivity
 ```
 
-Requires Python ≥ 3.10. Core dependencies: NumPy, SciPy.
+Requires Python ≥ 3.10. Dependencies: NumPy, SciPy, pandas, HiGHS (`highspy`),
+and CVXPY.
 
 ## 30-second example
 

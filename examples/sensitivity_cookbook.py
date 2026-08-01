@@ -37,9 +37,9 @@ for k in (3, 4, 8):
     else:
         print(f"  k={k}: infeasible ({rr.message})")
 
-print("\n=== f-sensitivity (needs partialid[convex]) ===")
+print("\n=== f-sensitivity (CVXPY) ===")
 if not cvxpy_available():
-    print("  skipped — install with: pip install 'partialid[convex]'")
+    print("  skipped — cvxpy not available (install with: pip install partialid)")
 else:
     for rho in (0.0, 0.05, 0.5, 5.0):
         rr = bound(V, P, Q, base & Assumptions.f_sensitivity("X", rho, f="tv"))

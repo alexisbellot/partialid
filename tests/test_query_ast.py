@@ -87,7 +87,6 @@ def test_nested_query_bounds_run():
         ["X", "M", "Y"],
         directed=[("X", "M"), ("X", "Y"), ("M", "Y")],
         bidirected=[("X", "Y")],
-        maximal_confounding=False,
     )
     nested = PO("Y", {"X": 1, "M": PO("M", {"X": 0})})
     Q = Query.from_expr(LinComb.atom(Atom(Lit(nested, 1))), outcome="Y", value=1)
@@ -99,7 +98,7 @@ def test_nested_query_bounds_run():
 
 def test_compile_interventional_matches_typespace():
     V = Variables.from_binary("X", "Y")
-    ts = TypeSpace.from_diagram(V, CausalDiagram.from_order(["X", "Y"], maximal_confounding=True))
+    ts = TypeSpace.from_diagram(V, CausalDiagram.from_order(["X", "Y"]))
     allow = np.ones(ts.n_types, dtype=bool)
     Q = Query.interventional(outcome="Y", do={"X": 1}, value=1)
     obj = compile_objective(ts, Q.expr, allow)

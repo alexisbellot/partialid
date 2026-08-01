@@ -86,7 +86,7 @@ def test_conditional_msm_on_covariate_parent():
     a = Assumptions.diagram(
         ["C", "X", "Y"],
         directed=[("C", "X"), ("X", "Y"), ("C", "Y")],
-        maximal_confounding=True,
+        bidirected=[("C", "X", "Y")],
     ) & Assumptions.tan_msm("X", 1.5)
     lp = formulate(V, P, Q, a, optimize=False)
     assert any("conditional on" in n for n in lp.notes)
