@@ -71,12 +71,13 @@ def analyze_degree1(
     treatments: Sequence[str] | None = None,
     outcome: str | None = None,
     query: object | None = None,
+    variables: object | None = None,
 ) -> Degree1Factorization:
     """Identify free districts for a query on ``g``.
 
     Free districts are confounded blocks (latent hyperedges) in the ancestral
     graph, plus unconfounded blocks that contain a *cross-world* variable
-    (PNS / PN / PS); see :mod:`partialid.query_footprint`.
+    from the query AST; see :mod:`partialid.query_footprint`.
     """
     notes: list[str] = []
     cross_world: set[str] = set()
@@ -84,14 +85,13 @@ def analyze_degree1(
     if query is not None:
         from .query_footprint import extract_footprint
 
-        fp = extract_footprint(query, diagram=g)
+        fp = extract_footprint(query, diagram=g, variables=variables)  # type: ignore[arg-type]
         notes.extend(list(fp.notes))
         seeds = set(fp.all_vars)
         cross_world = set(fp.cross_world_vars)
-        treatments = list(treatments) if treatments is not None else sorted(fp.intervention_vars)
-        outcome = outcome if outcome is not None else getattr(query, "outcome", None)
-        if outcome is not None:
-            seeds.add(str(outcome))
+        treatments = (
+            list(treatments) if treatments is not None else sorted(fp.intervention_vars)
+        )
         seeds |= set(treatments)
     else:
         if treatments is None or outcome is None:

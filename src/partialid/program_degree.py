@@ -35,7 +35,12 @@ Interventional ``P(Y|do(X))``: free ``{X,M}`` only → **Linear**.
 PNS ``P(Y₁=1,Y₀=0)``: free ``{X,M}`` and cross-world ``{Y}`` → **Bilinear**
 (factor).
 
-Rule (extracted from E1–E8)
+**E9. Arbitrary joint counterfactual.** e.g. ``P(Y_z, W_x | R)`` via
+``Query.from_expr`` / ``Query.conditional`` (not a named factory).
+Multi-regime atom frees ``Y`` and ``W``; observational ``R`` frees numerator
+PO-vars. Degree follows the same ∑ free-block rule.
+
+Rule (extracted from E1–E9)
 ---------------------------
 Let free districts be confounded ancestral blocks plus cross-world
 unconfounded blocks (see :mod:`partialid.query_footprint`). Let ``d_C`` be
@@ -94,15 +99,24 @@ def classify_program(
     treatments: Sequence[str] | None = None,
     outcome: str | None = None,
     query: Query | None = None,
+    variables: object | None = None,
     has_wl_wr_cut: bool = False,
 ) -> ProgramDegree:
     """Classify by ∑ free-block degrees (see module doc).
 
-    Pass ``query=`` for counterfactual / general AST queries; ``treatments`` +
+    Pass ``query=`` for any AST query (:meth:`Query.from_expr` /
+    :meth:`Query.conditional`, not only named factories). ``treatments`` +
     ``outcome`` remain supported for interventional classification.
+    ``variables`` enables CUT unnesting before footprint analysis.
     """
     if query is not None:
-        fac = analyze_degree1(diagram, treatments=treatments, outcome=outcome, query=query)
+        fac = analyze_degree1(
+            diagram,
+            treatments=treatments,
+            outcome=outcome,
+            query=query,
+            variables=variables,
+        )
     else:
         if treatments is None or outcome is None:
             raise TypeError("classify_program requires treatments+outcome, or query=")

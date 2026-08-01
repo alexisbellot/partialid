@@ -117,8 +117,8 @@ def build_latent_bilinear(
 ) -> GPPData:
     """Build GPPData tensors for a c-degree-2 district (two latent hyperedges).
 
-    Supports any :class:`~partialid.query_ast.LinComb` query (interventional,
-    ATE, PNS, …). Fractional Cond queries are not supported here.
+    Supports :class:`~partialid.query_ast.LinComb` and fixed-denominator
+    :class:`~partialid.query_ast.Cond` (PN / PS).
     """
     if query.expr is None:
         raise ValueError("latent bilinear requires query.expr")
@@ -156,7 +156,7 @@ def build_latent_bilinear(
         raise ValueError(f"latent bilinear exceeds block gate: ({n1}, {n2})")
 
     from .formulate import _normalize_P
-    from .query_compile import lincomb_coeff_via_eval
+    from .query_compile import query_coeff_via_eval
 
     cells, P = _normalize_P(variables, order, data)
     cell_index = {cell: k for k, cell in enumerate(cells)}
@@ -204,8 +204,14 @@ def build_latent_bilinear(
             world = _eval(None)
             cell = tuple(world[v] for v in order)
             A[cell_index[cell], i, j] += 1.0
-            c_obj[i, j] = lincomb_coeff_via_eval(
-                query.expr, _eval, variables=variables, diagram=diagram
+            c_obj[i, j] = query_coeff_via_eval(
+                query.expr,
+                _eval,
+                variables=variables,
+                diagram=diagram,
+                order=order,
+                cells=cells,
+                P_vec=P,
             )
 
     n_raw_i, n_raw_j = A.shape[1], A.shape[2]

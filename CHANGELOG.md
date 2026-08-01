@@ -16,6 +16,11 @@ versioning follows [SemVer](https://semver.org/) (0.x API may evolve; see
 - `classify_program` / bilinear–GPP routing accept **counterfactual** LinComb
   queries (PNS, ATE, …): cross-world variables become free blocks (e.g. mediated
   `X↔M→Y` is linear for `P(Y|do(X))` and bilinear/factor for PNS).
+- PN/PS (`Cond` with fixed observational denominator) route to GPP via
+  Tian–Pearl linearization (no merged-outer fallback).
+- Program-degree / GPP routing is AST-first: any `Query.from_expr` /
+  `Query.conditional` (e.g. `P(Y_z, W_x | R)`), not only named factories.
+  Multi-regime joints and observational evidence free the relevant blocks.
 
 ### Changed
 - Single install: `pip install partialid` now includes pandas, HiGHS (`highspy`),

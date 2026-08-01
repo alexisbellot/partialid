@@ -481,19 +481,20 @@ def formulate(
         variables, data, diagram = _inert_prune_order_only(variables, data, query, diagram, notes)
 
     outer = False
-    # Program-degree router: interventional + LinComb counterfactuals (ATE/PNS/…).
-    # Fractional Cond (PN/PS) still runs analysis for notes, but GPP builders
-    # reject Cond and fall back to TypeSpace / outer LP.
+    # Program-degree router: any LinComb / fixed-denom Cond AST (not named-only).
     if optimize and query.expr is not None:
         from .degree1 import analyze_degree1, induced_subgraph
         from .program_degree import ProgramKind, classify_program
+        from .query_ast import Cond as _Cond
         from .query_ast import LinComb as _LinComb
+        from .query_compile import gpp_expr_supported
 
         fac = analyze_degree1(
             diagram,
             treatments=list(query.intervention.keys()),
             outcome=query.outcome,
             query=query,
+            variables=variables,
         )
         notes.extend(list(fac.notes))
         prog = classify_program(
@@ -501,10 +502,26 @@ def formulate(
             treatments=list(query.intervention.keys()),
             outcome=query.outcome,
             query=query,
+            variables=variables,
             has_wl_wr_cut=False,
         )
         notes.extend([n for n in prog.notes if n.startswith("program:")])
-        _gpp_lincomb_ok = isinstance(query.expr, _LinComb)
+
+        def _gpp_query_ok(diag: CausalDiagram, vars_: Variables, data_: Mapping) -> bool:
+            if isinstance(query.expr, _LinComb):
+                return True
+            if not isinstance(query.expr, _Cond):
+                return False
+            ord_ = diag.topological_order()
+            cells_p, p_vec = _normalize_P(vars_, ord_, data_)
+            return gpp_expr_supported(
+                query.expr,
+                variables=vars_,
+                diagram=diag,
+                order=ord_,
+                cells=cells_p,
+                P_vec=p_vec,
+            )
 
         def _gpp_stub(gpp_obj, hint: str = "gpp") -> LPData:
             v0 = diagram.topological_order()[0]
@@ -690,11 +707,7 @@ def formulate(
                     f"{list(an_order)} (no merge)"
                 )
 
-        elif (
-            prog.kind == ProgramKind.BILINEAR_LATENT
-            and prefer_gpp
-            and _gpp_lincomb_ok
-        ):
+        elif prog.kind == ProgramKind.BILINEAR_LATENT and prefer_gpp:
             # One district, two latent hyperedges → sharp nested-LP bilinear
             from .latent_bilinear import build_latent_bilinear
 
@@ -711,6 +724,10 @@ def formulate(
                 variables = variables.restrict(d_order)
                 diagram = induced_subgraph(diagram, d_order)
             try:
+                if not _gpp_query_ok(diagram, variables, data):
+                    raise ValueError(
+                        "latent bilinear requires LinComb or fixed-denom Cond"
+                    )
                 gpp = build_latent_bilinear(
                     variables, data, query, diagram, frozenset(D), notes=notes
                 )
@@ -775,12 +792,11 @@ def formulate(
                         din = variables.cells(parents) if parents else []
                         n *= len(_afns(din, variables.domains[v]))
                     counts.append(n)
-                if (
-                    prefer_gpp
-                    and _gpp_lincomb_ok
-                    and len(free) == 2
-                    and gpp_size_ok(counts)
-                ):
+                if prefer_gpp and len(free) == 2 and gpp_size_ok(counts):
+                    if not _gpp_query_ok(diagram, variables, data):
+                        raise ValueError(
+                            "GPP requires LinComb or fixed-denom Cond (PN/PS)"
+                        )
                     gpp = build_gpp(
                         variables,
                         data,
@@ -789,9 +805,16 @@ def formulate(
                         free,
                         notes=notes,
                     )
+                    if isinstance(query.expr, _Cond):
+                        notes.append(
+                            "GPP Cond: fixed observational denominator "
+                            "(Tian–Pearl PN/PS linearization)"
+                        )
+                        gpp.notes = list(gpp.notes) + [
+                            "GPP Cond: fixed observational denominator "
+                            "(Tian–Pearl PN/PS linearization)"
+                        ]
                     return _gpp_stub(gpp, hint="gpp")
-                if not _gpp_lincomb_ok:
-                    raise ValueError("GPP requires LinComb query (not fractional Cond)")
             except Exception as exc:
                 notes.append(f"GPP unavailable ({exc}); falling back to outer LP")
 

@@ -9,6 +9,8 @@ from partialid import Assumptions, CausalDiagram, Query, Variables, bound
 from partialid.degree1 import analyze_degree1, c_degree_upper_bound
 from partialid.graph import normalize_hyperedge
 from partialid.program_degree import ProgramKind, classify_program
+from partialid.query_ast import Atom, Cond, LinComb, Lit, PO
+from partialid.query_footprint import extract_footprint_from_expr
 
 
 def _softmax_P(V, seed=1):
@@ -207,3 +209,101 @@ def test_e8_bound_routes_pns_to_gpp():
     assert r_pns.upper <= 1.0 + 1e-8
     assert r_pns.width >= -1e-8
     assert any("GPP bilinear" in n for n in r_pns.notes)
+
+
+def test_e8_pn_ps_route_to_gpp_fixed_denom():
+    """PN/PS are Cond but fixed observational denom → GPP (not merged outer)."""
+    V = Variables.from_binary("X", "M", "Y")
+    P = _P_compatible_x_m_y(seed=2)
+    g = _mediated_one_latent()
+    A = Assumptions.from_diagram(g)
+
+    r_pn = bound(V, P, Query.pn(treatment="X", outcome="Y"), A)
+    assert r_pn.success
+    assert r_pn.method == "gpp"
+    assert not any("merged-latent outer" in n for n in r_pn.notes)
+    assert any("fixed observational denominator" in n for n in r_pn.notes)
+    assert 0.0 <= r_pn.lower + 1e-8
+    assert r_pn.upper <= 1.0 + 1e-8
+
+    r_ps = bound(V, P, Query.ps(treatment="X", outcome="Y"), A)
+    assert r_ps.success
+    assert r_ps.method == "gpp"
+    assert not any("merged-latent outer" in n for n in r_ps.notes)
+    assert 0.0 <= r_ps.lower + 1e-8
+    assert r_ps.upper <= 1.0 + 1e-8
+
+
+def test_arbitrary_joint_counterfactual_footprint():
+    """P(Y_z, W_x) multi-regime atom frees Y and W (no named factory)."""
+    expr = LinComb.atom(
+        Atom(Lit(PO("Y", {"Z": 1}), 1), Lit(PO("W", {"X": 0}), 1))
+    )
+    fp = extract_footprint_from_expr(expr)
+    assert fp.cross_world_vars == frozenset({"Y", "W"})
+    assert fp.intervention_vars == frozenset({"Z", "X"})
+
+    # Single-world joint under one assignment is not cross-world
+    expr_sw = LinComb.atom(
+        Atom(Lit(PO("Y", {"X": 1}), 1), Lit(PO("M", {"X": 1}), 1))
+    )
+    fp_sw = extract_footprint_from_expr(expr_sw)
+    assert fp_sw.cross_world_vars == frozenset()
+
+
+def test_e9_arbitrary_conditional_classify_and_gpp():
+    """P(Y_z, W_x | X=1, W=1) via Query.conditional → bilinear/factor GPP."""
+    g = CausalDiagram.from_edges(
+        ["X", "W", "Z", "Y"],
+        directed=[("X", "W"), ("Z", "Y")],
+        bidirected=[("X", "W"), ("Z", "Y")],
+    )
+    numer = Atom(Lit(PO("Y", {"Z": 1}), 1), Lit(PO("W", {"X": 0}), 1))
+    given = Atom(Lit("X", 1), Lit("W", 1))
+    Q = Query.conditional(numer, given, outcome="Y", value=1)
+
+    prog = classify_program(g, query=Q)
+    assert prog.kind == ProgramKind.BILINEAR_FACTOR
+    assert prog.degree == 2
+    free_sorted = sorted(sorted(d) for d in prog.free_districts)
+    assert free_sorted == [["W", "X"], ["Y", "Z"]]
+
+    # Compatible P: districts factor with CI across {X,W} ⊥ {Z,Y}.
+    # Tuple keys follow diagram topological order (required by formulate).
+    rng = np.random.default_rng(3)
+    p_xw = rng.dirichlet(np.ones(4)).reshape(2, 2)
+    p_zy = rng.dirichlet(np.ones(4)).reshape(2, 2)
+    order = g.topological_order()
+    P = {}
+    for x in (0, 1):
+        for w in (0, 1):
+            for z in (0, 1):
+                for y in (0, 1):
+                    d = {"X": x, "W": w, "Z": z, "Y": y}
+                    P[tuple(d[v] for v in order)] = float(p_xw[x, w] * p_zy[z, y])
+    V = Variables.from_binary("X", "W", "Z", "Y")
+    r = bound(V, P, Q, Assumptions.from_diagram(g))
+    assert r.success
+    assert r.method == "gpp"
+    assert any("fixed observational denominator" in n for n in r.notes)
+    assert not any("merged-latent outer" in n for n in r.notes)
+    assert 0.0 <= r.lower + 1e-8
+    assert r.upper <= 1.0 + 1e-8
+
+
+def test_from_expr_does_not_inject_default_outcome_seed():
+    """Arbitrary expr must not pull default outcome='Y' into the ancestral set."""
+    g = CausalDiagram.from_edges(
+        ["A", "B", "Y"],
+        directed=[("A", "B")],
+        bidirected=[("A", "B")],
+    )
+    # Query only involves A,B — default Query.outcome is still "Y"
+    Q = Query.from_expr(
+        LinComb.atom(Atom(Lit(PO("B", {"A": 1}), 1))),
+        outcome="Y",  # unused default-style field
+        value=1,
+    )
+    fac = analyze_degree1(g, query=Q)
+    assert "Y" not in fac.ancestral
+    assert fac.free_districts == (frozenset({"A", "B"}),)

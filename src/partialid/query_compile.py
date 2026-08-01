@@ -258,30 +258,124 @@ def atom_holds_via_eval(
     return True
 
 
+def observational_lincomb_mass(
+    denom: LinComb,
+    order: Sequence[str],
+    cells: Sequence[tuple],
+    P_vec: np.ndarray,
+) -> float | None:
+    """Mass of a purely observational LinComb under ``P`` (single-atom denom).
+
+    Used for Tian–Pearl fixed-denominator linearization without a TypeSpace.
+    """
+    if len(denom.terms) != 1:
+        return None
+    coeff, atom = denom.terms[0]
+    if any(isinstance(lit.expr, PO) for lit in atom.lits):
+        return None
+    idx = {n: i for i, n in enumerate(order)}
+    mass = 0.0
+    for cell, p in zip(cells, P_vec):
+        ok = True
+        for lit in atom.lits:
+            assert isinstance(lit.expr, str)
+            if lit.expr not in idx or cell[idx[lit.expr]] != lit.value:
+                ok = False
+                break
+        if ok:
+            mass += float(p)
+    return float(coeff) * mass
+
+
+def query_coeff_via_eval(
+    expr: Expr,
+    evaluate: Callable[[Mapping[str, object] | None], Mapping[str, object]],
+    *,
+    variables: Variables,
+    diagram: CausalDiagram,
+    order: Sequence[str] | None = None,
+    cells: Sequence[tuple] | None = None,
+    P_vec: np.ndarray | None = None,
+) -> float:
+    """Objective coefficient of a query for one factorized response type.
+
+    Supports :class:`LinComb` and :class:`Cond` with a *fixed observational*
+    denominator (PN / PS). Truly fractional conditionals raise
+    ``NotImplementedError`` (no Charnes–Cooper on the GPP path yet).
+    """
+    notes: list[str] = []
+    unnested = unnest_expr(expr, variables, diagram, notes)
+    if isinstance(unnested, LinComb):
+        total = 0.0
+        for coeff, atom in unnested.terms:
+            if atom_holds_via_eval(evaluate, atom):
+                total += float(coeff)
+        return total
+
+    assert isinstance(unnested, Cond)
+    if order is None or cells is None or P_vec is None:
+        raise NotImplementedError(
+            "GPP Cond queries require observational (order, cells, P) "
+            "for fixed-denominator linearization"
+        )
+    dmass = observational_lincomb_mass(unnested.denom, order, cells, P_vec)
+    if dmass is None:
+        raise NotImplementedError(
+            "GPP does not support truly fractional Cond "
+            "(denominator not a fixed observational mass)"
+        )
+    if dmass <= 1e-15:
+        raise ValueError("conditional undefined: P(denom)=0")
+    numer = unnested.numer
+    if not _numer_implies_denom(unnested.numer, unnested.denom):
+        numer = _conjunct_lincombs(unnested.numer, unnested.denom)
+    total = 0.0
+    for coeff, atom in numer.terms:
+        if atom_holds_via_eval(evaluate, atom):
+            total += float(coeff)
+    return total / dmass
+
+
 def lincomb_coeff_via_eval(
     expr: Expr,
     evaluate: Callable[[Mapping[str, object] | None], Mapping[str, object]],
     *,
     variables: Variables,
     diagram: CausalDiagram,
+    order: Sequence[str] | None = None,
+    cells: Sequence[tuple] | None = None,
+    P_vec: np.ndarray | None = None,
 ) -> float:
-    """Objective coefficient of a LinComb query for one factorized type.
+    """Alias of :func:`query_coeff_via_eval` (kept for call-site clarity)."""
+    return query_coeff_via_eval(
+        expr,
+        evaluate,
+        variables=variables,
+        diagram=diagram,
+        order=order,
+        cells=cells,
+        P_vec=P_vec,
+    )
 
-    Fractional (:class:`Cond`) queries are not supported on the GPP path.
-    """
+
+def gpp_expr_supported(
+    expr: Expr,
+    *,
+    variables: Variables,
+    diagram: CausalDiagram,
+    order: Sequence[str],
+    cells: Sequence[tuple],
+    P_vec: np.ndarray,
+) -> bool:
+    """True if ``expr`` can be compiled to a linear GPP objective."""
     notes: list[str] = []
     unnested = unnest_expr(expr, variables, diagram, notes)
+    if isinstance(unnested, LinComb):
+        return True
     if isinstance(unnested, Cond):
-        raise NotImplementedError(
-            "GPP / latent-bilinear currently support LinComb queries only "
-            "(not fractional Cond / PN / PS)"
-        )
-    assert isinstance(unnested, LinComb)
-    total = 0.0
-    for coeff, atom in unnested.terms:
-        if atom_holds_via_eval(evaluate, atom):
-            total += float(coeff)
-    return total
+        dmass = observational_lincomb_mass(unnested.denom, order, cells, P_vec)
+        return dmass is not None and dmass > 1e-15
+    return False
 
 
 def _lincomb_coefficients(

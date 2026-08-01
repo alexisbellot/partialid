@@ -65,7 +65,9 @@ g = CausalDiagram.from_edges(
 print(classify_program(g, treatments=["X"], outcome="Y"))
 # ProgramKind.BILINEAR_LATENT, degree=2
 
-# Counterfactuals: pass query= (cross-world vars become free blocks)
+# Any AST query (not only named factories): pass query=
+from partialid.query_ast import Atom, Lit, PO
+
 g2 = CausalDiagram.from_edges(
     ["X", "M", "Y"],
     directed=[("X", "M"), ("M", "Y")],
@@ -75,6 +77,13 @@ print(classify_program(g2, query=Query.interventional(outcome="Y", do={"X": 1}, 
 # linear
 print(classify_program(g2, query=Query.pns()).kind)
 # bilinear/factor
+
+# e.g. P(Y_z=1, W_x=0 | R=1)
+Q = Query.conditional(
+    Atom(Lit(PO("Y", {"Z": 1}), 1), Lit(PO("W", {"X": 0}), 0)),
+    Atom(Lit("R", 1)),
+)
+classify_program(diagram, query=Q)  # degree from multi-regime + evidence
 ```
 
 Worked examples live in the docstring of

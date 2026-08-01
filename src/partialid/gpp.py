@@ -262,8 +262,9 @@ def build_gpp(
 ) -> GPPData:
     """Assemble sparse/aggregated A, c for a K=2 factorized GPP.
 
-    Supports any :class:`~partialid.query_ast.LinComb` query (interventional,
-    ATE, PNS, …). Fractional Cond queries (PN/PS) are not supported here.
+    Supports :class:`~partialid.query_ast.LinComb` queries (interventional,
+    ATE, PNS, …) and :class:`~partialid.query_ast.Cond` with a fixed
+    observational denominator (PN / PS Tian–Pearl linearization).
     """
     if query.expr is None:
         raise ValueError("GPP requires query.expr")
@@ -310,7 +311,7 @@ def build_gpp(
         return out
 
     from .formulate import _normalize_P
-    from .query_compile import lincomb_coeff_via_eval
+    from .query_compile import query_coeff_via_eval
 
     cells, P = _normalize_P(variables, order, data)
     n_cells = len(cells)
@@ -330,8 +331,14 @@ def build_gpp(
             world = _eval(None)
             cell = tuple(world[v] for v in order)
             A[cell_index[cell], i, j] += 1.0
-            c_obj[i, j] = lincomb_coeff_via_eval(
-                query.expr, _eval, variables=variables, diagram=diagram
+            c_obj[i, j] = query_coeff_via_eval(
+                query.expr,
+                _eval,
+                variables=variables,
+                diagram=diagram,
+                order=order,
+                cells=cells,
+                P_vec=P,
             )
 
     n_raw_i, n_raw_j = A.shape[1], A.shape[2]
