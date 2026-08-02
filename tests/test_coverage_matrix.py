@@ -103,4 +103,4 @@ def test_coverage_markov_id():
     )
     assert r.success
     assert r.width < 1e-8
-    assert r.method.startswith("id/")
+    assert r.method.startswith("id")

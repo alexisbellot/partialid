@@ -12,25 +12,40 @@ assumptions + query + data
    closed form?  ──yes──► analytic interval
         │ no
         ▼
-   ID on explicit diagram? ──yes──► point interval (identified)
+   ID (Shpitser–Pearl) on explicit diagram?
+        │ yes ──► point interval (method id / id/ate)
         │ no
         ▼
-   MSM aggregate applicable? ──yes──► msm_agg (sensitivity-native)
+   MSM aggregate applicable? ──yes──► msm_agg
         │ no
         ▼
-   fiber-separable faces? ──yes──► fiber scan (no LP)
-        │ no
+   classify_program (C2 + ID → POINT, else post-cut degree)
+        │
+        ├─ POINT / LINEAR ──► instrument LP (WL–WR / C2) or fiber / primal LP
+        ├─ BILINEAR_*     ──► gpp / gpp/latent   (unless prefer_gpp=False → outer)
+        └─ POLYNOMIAL     ──► outer LP by default
+                              └─ prefer_poly=True → gpp/poly (factor K=3, size-gated)
+        │
         ▼
-   equality-only & n ≫ m? ──yes──► dual LP (tagged lp/dual)
-        │ no
-        ▼
-   huge type space? ──yes──► column generation (colgen)
-        │ no
-        ▼
-   full primal LP (HiGHS via SciPy)
+   within LINEAR / fiber path, size heuristics may still pick:
+        fiber → dual LP → colgen → primal HiGHS
 ```
 
-Special assumption classes force other paths earlier:
+`classify_program` follows THEORY §6: ancestral trim, footprint C1, directed-cut
+C2, then ID (→ `POINT`) or \(\sum\lambda\). See
+[Graphs](graphs.md#program-degree-which-solver). Use `is_identified` /
+`identify_query` to test identification without an LP.
+
+## Formulation knobs
+
+| Flag | Default | Effect |
+|---|---|---|
+| `prefer_gpp` | `True` | Bilinear factor/latent → nested GPP; `False` forces outer LP |
+| `prefer_poly` | `False` | Deg≥3 → outer LP; `True` tries `gpp/poly` when the size gate passes |
+
+Pass them on `bound(...)` or `formulate(...)`.
+
+## Method hints (special paths)
 
 | Hint | When |
 |---|---|
@@ -40,10 +55,6 @@ Special assumption classes force other paths earlier:
 | `gpp/latent` | one district with c-degree 2 (two latent hyperedges) |
 | `gpp/poly` | deg≥3 with `prefer_poly=True` and size gate (factor \(K=3\)) |
 | `fractional` | conditional ratio programs |
-
-Diagram program class (before numeric solve) is summarized by
-`classify_program` — see [Graphs](graphs.md#program-degree-which-solver).
-Degree ≥3 uses an outer LP unless you pass `prefer_poly=True` to `bound`.
 
 ## What you should do
 

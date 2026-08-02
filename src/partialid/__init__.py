@@ -18,6 +18,8 @@ from .audit import AuditReport, audit_assumptions, audit_bound
 from .closed_forms import ClosedFormResult, try_closed_form
 from .data import ObservationalData, from_counts, from_dataframe, from_records
 from .graph import CausalDiagram
+from .id_algorithm import is_identified
+from .identify import IDResult, identify_query
 from .inference import BoundCIResult, bound_ci
 from .parametric import BoundPathResult, bound_path
 from .problems import Problem, all_literature_problems
@@ -58,6 +60,9 @@ __all__ = [
     "ProgramKind",
     "ProgramDegree",
     "classify_program",
+    "is_identified",
+    "identify_query",
+    "IDResult",
 ]
 
 

@@ -35,12 +35,14 @@ latent (LP). No `maximal_confounding` flag — Manski is a full hyperedge
 ## Algorithm sketch
 
 1. **Closed form** when a known pattern matches (Manski / Tan binary XY, …).
-2. **ID** on explicit diagrams (point interval when identified).
+2. **Shpitser–Pearl ID** on explicit diagrams (interventional / ATE → point interval).
 3. **MSM aggregate** for common sensitivity programs.
-4. **Fiber** scan when faces separate by observational cell.
-5. **Dual LP** when equality-only and \(n \gg m\).
-6. **Column generation** for huge type spaces.
-7. Else **primal HiGHS** (SciPy); optional persistent HiGHS via `highspy`.
+4. **`classify_program`** (C2 + ID → POINT, else post-cut degree) → formulate:
+   - LINEAR / POINT → instrument LP (WL–WR / C2) or TypeSpace LP / fiber
+   - BILINEAR_* → `gpp` / `gpp/latent` (`prefer_gpp=True`; else outer)
+   - POLYNOMIAL → outer by default; `prefer_poly=True` → `gpp/poly` when gated
+5. Within LP-shaped programs, size heuristics may still pick **fiber**,
+   **dual LP**, **column generation**, or **primal HiGHS**.
 
 Speed tables in this repo’s benchmarks compare against a *naive* full-type LP —
 not against Autobounds or R/`causaloptim`. See also

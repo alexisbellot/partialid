@@ -110,16 +110,20 @@ def _remargin_data(
 ) -> dict[tuple, float]:
     """Marginalize a joint table onto ``keep``.
 
-    Tuple keys are read in ``variables.names`` order (declaration order).
+    Tuple keys are read in observed-variable order (declaration / topo order
+    among observed names). Latent endogenous nodes do not index ``data``.
     """
     src = variables.names
     if set(keep) - set(src):
         raise ValueError(f"keep {list(keep)} not subset of {list(src)}")
-    cells, P = _normalize_P(variables, src, data)
-    keep_idx = [src.index(n) for n in keep]
+    obs_src = variables.observed_names(src)
+    cells, P = _normalize_P(variables, obs_src, data)
+    # Project onto the observed coordinates that remain in ``keep``.
+    obs_keep = tuple(n for n in keep if n in obs_src)
+    obs_src_idx = {n: i for i, n in enumerate(obs_src)}
     marg: dict[tuple, float] = {}
     for cell, p in zip(cells, P):
-        key = tuple(cell[i] for i in keep_idx)
+        key = tuple(cell[obs_src_idx[n]] for n in obs_keep)
         marg[key] = marg.get(key, 0.0) + float(p)
     return marg
 

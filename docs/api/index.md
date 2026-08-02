@@ -15,9 +15,13 @@ Deep imports of internal modules are unsupported.
 | [Queries](query.md) | `Query` and AST helpers |
 | [Bound](bound.md) | `bound`, `bound_path`, `bound_grid`, results (`prefer_poly` / `prefer_gpp`) |
 
-Also exported: `classify_program`, `ProgramDegree`, `ProgramKind` — see
-[Graphs → program degree](../graphs.md#program-degree-which-solver).
+Also exported (see [Stability](../stability.md) for tiers):
 
-Conceptual catalog (literature → factory): [Assumptions guide](../assumptions.md).
+- `CausalDiagram`, `classify_program`, `ProgramDegree`, `ProgramKind`
+- Identification: `is_identified`, `identify_query`, `IDResult`
+- Query AST: `PO`, `Lit`, `Atom`, `LinComb`, `Cond`
+- `audit_assumptions`, `audit_bound`, `bound_ci`, `try_closed_form`
+- Literature `Problem` / `all_literature_problems`
 
-Stability tiers: [Stability contract](../stability.md).
+Program-degree routing: [Graphs](../graphs.md#program-degree-which-solver).
+Conceptual catalog: [Assumptions guide](../assumptions.md).

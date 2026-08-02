@@ -8,7 +8,15 @@ versioning follows [SemVer](https://semver.org/) (0.x API may evolve; see
 
 ## [Unreleased]
 
+### Fixed
+- Measurement-error / latent-endogenous graphs: keep observed proxies in the
+  ancestral set, skip spurious ID→POINT when the outcome is latent, and
+  remargin observational tables on observed coordinates only.
+
 ### Added
+- Numbered vignette tutorials under `notebooks/` (`01`–`07`) with synthetic
+  study CSVs in `notebooks/data/` (job training, encouragement IV, 8-variable
+  panel).
 - Latent **hyperedges** in `CausalDiagram.bidirected` (pairs or larger tuples):
   each hyperedge is one exogenous source.
 - `classify_program` (THEORY §6): ancestral trim + footprint C1 + directed-cut
@@ -30,6 +38,13 @@ versioning follows [SemVer](https://semver.org/) (0.x API may evolve; see
   Multi-regime joints and observational evidence free the relevant blocks.
 
 ### Changed
+- Identification is **Shpitser–Pearl ID only** (g-formula / back-door /
+  front-door fallbacks removed as separate engines). `classify_program` sets
+  `POINT` when ID succeeds; public `is_identified` / `identify_query`; ATE
+  point-ID when both margins are identified (`method="id/ate"`).
+- Docs overview refreshed for classify routing: `prefer_poly=False` by default
+  (deg≥3 → outer; opt in with `prefer_poly=True`), `prefer_gpp` on `bound`,
+  auto-routing flowchart, graphs / concepts / README / API index.
 - Single install: `pip install partialid` now includes pandas, HiGHS (`highspy`),
   and CVXPY. Removed the `data` / `fast` / `convex` / `all` extras.
 - Removed `maximal_confounding`. Manski / order-only is

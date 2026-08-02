@@ -35,6 +35,8 @@ Applies until **1.0.0**. See also [`product.md`](product.md).
 **Experimental (exported, but may change shape in 0.x without long deprecation):**
 
 - Query AST: `PO`, `Lit`, `Atom`, `LinComb`, `Cond`
+- Program degree: `classify_program`, `ProgramDegree`, `ProgramKind`
+- Identification: `is_identified`, `identify_query`, `IDResult`
 - `bound_ci`, `BoundCIResult`
 - `audit_assumptions`, `audit_bound`, `AuditReport`
 - `try_closed_form`, `ClosedFormResult`
@@ -48,7 +50,7 @@ long-lived downstream APIs on them until 1.0 promotes them to core.
 | Signal | Meaning |
 |---|---|
 | `tight=True` (default) | Solver claims sharp bounds under the stated discrete LP/MIP/convex program for this assumption class. |
-| `tight=False` | Bounds are a **valid outer approximation** (contain the true identified set) but may be **loose**. Typical cause: multi c-component / merged-latent fallback when factors are not separated by ID. |
+| `tight=False` | Bounds are a **valid outer approximation** (contain the true identified set) but may be **loose**. Typical causes: degree ≥3 (default outer), GPP size-gate failure, hard independence, or other merged-latent fallback. |
 | `warnings` / `UserWarning` | Human-readable copy of the same issue (and related notes). Emitted when the result is returned. |
 | `notes` | Machine-oriented tags (e.g. `bounds_may_be_outer`). |
 

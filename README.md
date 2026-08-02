@@ -98,14 +98,37 @@ notebooks under [`notebooks/`](notebooks/) (see [`notebooks/README.md`](notebook
 
 Compose any of these with `&`. Details: [docs/assumptions.md](docs/assumptions.md).
 
+## Diagrams & program degree
+
+With an explicit `CausalDiagram`, `bound` runs **Shpitser–Pearl ID** first
+(point interval when identified), then routes by **program degree** via
+`classify_program` (LP / bilinear GPP / outer for deg≥3). Check `r.tight`.
+Deg≥3 defaults to an outer LP; opt in with `bound(..., prefer_poly=True)`.
+Details: [docs/graphs.md](docs/graphs.md), [auto routing](docs/auto_routing.md).
+
+```python
+from partialid import CausalDiagram, classify_program, is_identified
+
+g = CausalDiagram.from_edges(
+    ["X", "M", "Y"],
+    directed=[("X", "M"), ("M", "Y")],
+    bidirected=[("X", "M"), ("M", "Y")],
+)
+print(classify_program(g, treatments=["X"], outcome="Y").kind)
+# bilinear/latent
+print(is_identified(g, ["X"], ["Y"]))  # False (pair chain)
+```
+
 ## When bounds may be loose
 
-If the solver falls back to a merged-latent **outer** approximation,
+If the solver falls back to a merged-latent **outer** approximation
+(deg≥3 by default, size-gate failure, hard independence, …),
 `BoundResult.tight` is `False` and a `UserWarning` is emitted. Check `r.tight`
 in pipelines. Details: [stability](docs/stability.md),
 [solvers (advanced)](docs/advanced/solvers.md).
 
-Advanced solver flags (`dual`, `colgen`, …) are optional; leave `method="auto"`.
+Advanced solver flags (`dual`, `colgen`, `prefer_gpp`, `prefer_poly`, …) are
+optional; leave `method="auto"`.
 
 ## Docs
 
@@ -115,12 +138,15 @@ Full site (MkDocs): [partialid documentation](https://alexisbellot.github.io/par
 |---|---|
 | [Quickstart](docs/quickstart.md) | Install + first bounds |
 | [Assumptions](docs/assumptions.md) | Composition + literature catalog |
+| [Graphs](docs/graphs.md) | Diagrams, `classify_program`, IV |
+| [Auto routing](docs/auto_routing.md) | What `method="auto"` chooses |
 | [Sensitivity](docs/sensitivity.md) | MSM / paths when you want a curve |
 | [Recipes](docs/recipes/manski.md) | Copy-paste jobs |
 | [API](docs/api/index.md) | Public symbols |
 | [Solvers](docs/advanced/solvers.md) | Advanced methods / routing |
 | [examples/](examples/) | Runnable scripts |
-| [notebooks/](notebooks/) | Showcase Jupyter notebooks |
+| [notebooks/](notebooks/) | Numbered tutorial notebooks (start at `01_first_bounds`) |
+
 Build locally: `pip install -e ".[docs]" && mkdocs serve`
 
 ## License

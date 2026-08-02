@@ -204,7 +204,7 @@ def test_e8_bound_routes_pns_to_gpp():
 
     r_do = bound(V, P, Query.interventional(outcome="Y", do={"X": 1}, value=1), A)
     assert r_do.success
-    assert r_do.method in ("fiber", "lp", "id/backdoor", "id/do_calc")
+    assert r_do.method in ("fiber", "lp", "id", "id/id") or r_do.method.startswith("id")
     assert r_do.tight
     assert r_do.method != "gpp"
 

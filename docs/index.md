@@ -46,9 +46,15 @@ print(r.summary(Q))
 | Sensitivity curves | `bound_path(...)`, `bound_grid(...)` |
 | Data ingress | `from_counts`, `from_records`, `from_dataframe` |
 | Recipes | `Assumptions.manski`, `sensitivity_msm`, `iv` |
+| Diagrams & program class | `CausalDiagram`, `classify_program` |
+| Identification (explicit DAG) | `is_identified`, `identify_query` |
+| Solver knobs | `prefer_gpp`, `prefer_poly` on `bound` |
+| Audit / CI (experimental) | `audit_assumptions`, `audit_bound`, `bound_ci` |
 
-Always check `BoundResult.tight`. Outer approximations set `tight=False` and
-emit a `UserWarning` — see [Concepts](concepts.md) and [Stability](stability.md).
+Always check `BoundResult.tight`. Degree ≥3 and some multi-component graphs use
+a merged-latent **outer** LP by default (`tight=False`); opt into nested
+multilinear with `prefer_poly=True`. See [Concepts](concepts.md),
+[Graphs](graphs.md), and [Stability](stability.md).
 
 ## Status
 
@@ -58,6 +64,7 @@ Alpha (`0.1.0a4`). Public API may evolve on 0.x; see the
 ## Further reading
 
 - [Assumptions](assumptions.md) — literature catalog and composition
+- [Graphs](graphs.md) — diagrams, `classify_program`, instruments
 - [API reference](api/index.md)
 - [Auto routing](auto_routing.md) — what `method="auto"` chooses
 - [Solvers (advanced)](advanced/solvers.md) — method scope and routing sketch

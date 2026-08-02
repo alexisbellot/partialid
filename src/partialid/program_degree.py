@@ -7,8 +7,10 @@ LIN/FIXDEN queries — ``Classify`` is:
    districts are not free unless cross-world);
 2. directed-cut C2 loop (Lemma 3.3 / Prop. 8.4 WL–WR): drop free districts
    wholly on the I-side;
-3. ``degree = ∑ λ`` over surviving free blocks;
-4. map degree → POINT / LINEAR / BILINEAR_* / POLYNOMIAL.
+3. if Shpitser–Pearl ID succeeds for an interventional (or ATE) query,
+   ``F ← ∅`` → POINT;
+4. else ``degree = ∑ λ`` over surviving free blocks → LINEAR / BILINEAR_* /
+   POLYNOMIAL.
 
 Worked examples (query ``Q = P(Y=y | do(X=x))`` unless noted)
 --------------------------------------------------------------
@@ -211,6 +213,43 @@ def classify_program(
         outcome=outcome,
         notes=notes,
     )
+
+    # THEORY §6 step 9: if ID(Q) then F ← ∅ → POINT
+    # Skip Manski full-latent (never point-ID for do()) and counterfactuals.
+    from .id_algorithm import is_identified
+    from .identify import is_manski_full_latent
+
+    id_eligible = (
+        treatments is not None
+        and outcome is not None
+        and not is_manski_full_latent(g_an)
+        and (query is None or query.kind in ("interventional", "ate"))
+    )
+    # Classical ID reads functionals of P on the outcome; if the outcome (or a
+    # treatment) is latent endogenous, those functionals are not available from
+    # the observational table alone (measurement-error graphs).
+    if id_eligible and variables is not None:
+        obs = getattr(variables, "observed", None)
+        if obs is not None:
+            need = set(treatments) | {outcome}
+            if not need <= set(obs):
+                id_eligible = False
+                notes.append(
+                    "skip ID→POINT: query vars "
+                    f"{sorted(need - set(obs))} are latent endogenous"
+                )
+    if id_eligible and is_identified(g_an, list(treatments), [outcome]):
+        return ProgramDegree(
+            kind=ProgramKind.POINT,
+            degree=0,
+            free_districts=(),
+            c_degrees=(),
+            notes=tuple(notes + ["program: point (ID)"]),
+            wl_wr_cut=cut,
+            in_hypothesis_H=in_H,
+            pre_cut_free_districts=pre_cut,
+        )
+
     free = tuple(free_list)
     degrees = tuple(free_block_degree(g_an, d) for d in free)
 

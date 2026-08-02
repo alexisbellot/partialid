@@ -28,7 +28,10 @@ r = bound(V, P, Q, Assumptions.sensitivity_msm("X", "Y", Lambda=3.0))
 print(round(r.width, 3))  # 0.333
 ```
 
-Leave `method="auto"` (the default). Advanced solvers are documented under
+Leave `method="auto"` (the default). Diagram problems use
+`classify_program` for LP / bilinear GPP / outer routing — see
+[Graphs](graphs.md). Degree ≥3 is outer by default (`tight=False`);
+opt in with `bound(..., prefer_poly=True)`. Details:
 [Auto routing](auto_routing.md).
 
 ## From a table or CSV
@@ -53,12 +56,13 @@ data = from_dataframe(pd.read_csv("table.csv"), columns=["X", "Y"])
 ```
 
 Runnable scripts: `examples/quickstart.py`, `examples/from_csv.py`.
-Showcase notebooks: see [`notebooks/README.md`](../notebooks/README.md)
-(`quickstart.ipynb`, `larger_systems.ipynb`, …).
+Showcase tutorials: see [`notebooks/README.md`](../notebooks/README.md)
+(start with `01_first_bounds.ipynb`).
 
 ## Next
 
 - [Assumptions](assumptions.md) — catalog of literature factories + `&`
+- [Graphs](graphs.md) — diagrams, `classify_program`, instruments
 - [Concepts](concepts.md) — data, queries, tightness
 - [Sensitivity analysis](sensitivity.md) — optional budget sweeps
 - [Recipes](recipes/manski.md) — copy-paste jobs

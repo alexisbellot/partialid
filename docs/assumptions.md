@@ -41,9 +41,14 @@ interval.
 | `f_sensitivity(treatment, ρ, f=...)` | \(f\)-divergence sensitivity (CVXPY) |
 | `support_bound(k)` | At most \(k\) positive response types (MIP) |
 | `independence(*groups)` | Hard independence / c-split between groups |
+| `empty()` | Empty assumption set (no structural atoms) |
 
 Recipes (`manski`, `sensitivity_msm`, `iv`) are thin wrappers over these
 atoms. Prefer atoms + `&` when a recipe does not match your setting.
+
+`independence` is structural but often routes to a merged-latent **outer** LP
+(`tight=False`) when a tight factorization is unavailable — see
+[Solvers](advanced/solvers.md).
 
 ## Structure vs sensitivity
 
@@ -61,9 +66,10 @@ not required for ordinary point bounds.
 ## Inspecting a set
 
 ```python
-print(a.describe())   # human-readable atoms
+print(a.describe())           # human-readable atoms
 print(len(a))
-print(a.of_type)      # filter by atom class if needed
+print([type(atom).__name__ for atom in a])
+# a.of_type(SomeAssumptionClass) filters by dataclass type when needed
 ```
 
 Full signatures: [API · Assumptions](api/assumptions.md).

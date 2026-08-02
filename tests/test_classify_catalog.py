@@ -267,6 +267,19 @@ def test_catalog_L_classify(case_id, graph, query, kind, degree, free, cut, in_H
         assert set(prog.wl_wr_cut[1]) == set(cut[1]), case_id
 
 
+def test_catalog_L_frontdoor_confounding_is_point_id():
+    """Front-door with X↔Y: ID succeeds → classify POINT (not LINEAR)."""
+    g = CausalDiagram.from_edges(
+        ["X", "Z", "Y"],
+        directed=[("X", "Z"), ("Z", "Y")],
+        bidirected=[("X", "Y")],
+    )
+    prog = classify_program(g, query=_Q_do())
+    assert prog.kind == ProgramKind.POINT
+    assert prog.degree == 0
+    assert any("ID" in n for n in prog.notes)
+
+
 def test_catalog_L10_faces_do_not_change_kind():
     """MTR / exclusion faces present → still LINEAR (CompileAssump out of scope)."""
     g = g_bow()

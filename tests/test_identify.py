@@ -41,7 +41,7 @@ def test_markov_g_formula_point_id():
     g = CausalDiagram.from_edges(["X", "Y"], directed=[("X", "Y")])
     a = Assumptions.from_diagram(g)
     r = bound(V, RE1, Q, a)
-    assert r.method.startswith("id/")
+    assert r.method.startswith("id")
     assert r.tight
     assert abs(r.lower - 0.70) < 1e-8
     assert abs(r.upper - 0.70) < 1e-8
@@ -51,15 +51,13 @@ def test_markov_g_formula_point_id():
 def test_frontdoor_point_id():
     V = Variables.from_binary("X", "Z", "Y")
     Q = Query.interventional(outcome="Y", do={"X": 1}, value=1)
-    # Markovian chain: g-formula = sum_z P(z|x)P(y|z) = 139/240 on RE2
+    # Markovian chain: ID yields P(y|x) on RE2
     g = CausalDiagram.from_edges(["X", "Z", "Y"], directed=[("X", "Z"), ("Z", "Y")])
     a = Assumptions.from_diagram(g)
     r = bound(V, RE2, Q, a)
-    assert r.method.startswith("id/")
+    assert r.method.startswith("id")
     assert r.tight
-    # Under X→Z→Y, ID yields P(y|x) (=0.70 on RE2). Truncated g-formula
-    # with P(y|z) equals this only when Y⊥X|Z; RE2 violates that CI, so
-    # the two plug-ins disagree. ID's expression is the Shpitser form.
+    # Under X→Z→Y, ID yields P(y|x) (=0.70 on RE2).
     assert abs(r.lower - 0.70) < 1e-6
     assert abs(r.upper - r.lower) < 1e-10
 
@@ -75,7 +73,7 @@ def test_frontdoor_with_confounding():
     )
     a = Assumptions.from_diagram(g)
     r = bound(V, RE2, Q, a)
-    assert r.method.startswith("id/")
+    assert r.method.startswith("id")
     assert r.tight
     assert abs(r.upper - r.lower) < 1e-10
 
@@ -83,7 +81,7 @@ def test_frontdoor_with_confounding():
 def test_iv_not_point_id_instrument_tight():
     p = binary_iv(seed=2)
     r = bound(p.variables, p.data, p.query, p.assumptions)
-    assert not r.method.startswith("id/")
+    assert not r.method.startswith("id")
     assert r.tight  # Balke–Pearl R-side LP or closed form is tight for IV
     blob = " ".join(r.notes)
     assert "instrument LP" in blob or "balke_pearl" in blob or r.method.startswith("closed/")
@@ -227,7 +225,10 @@ def test_gpp_bilinear_tighter_than_outer():
 
 
 def test_napkin_identified_not_backdoor():
-    """Classic napkin: Z1→X→Y, Z1→Z2→Y, X↔Z2 — ID, not plain backdoor."""
+    """Classic napkin: Z1→X→Y, Z1→Z2→Y, X↔Z2 — ID (subsumes backdoor)."""
+    from partialid import classify_program, is_identified
+    from partialid.program_degree import ProgramKind
+
     V = Variables.from_binary("Z1", "Z2", "X", "Y")
     rng = np.random.default_rng(0)
     cells = V.cells(["Z1", "Z2", "X", "Y"])
@@ -240,18 +241,56 @@ def test_napkin_identified_not_backdoor():
         bidirected=[("X", "Z2")],
     )
     a = Assumptions.from_diagram(g)
+    assert is_identified(g, ["X"], ["Y"])
+    assert classify_program(g, query=Q).kind == ProgramKind.POINT
     idr = try_identify(V, P, Q, a)
     assert idr.identified
     assert idr.criterion == "id"
     r = bound(V, P, Q, a)
-    assert r.method == "id/id"
+    assert r.method == "id"
     assert r.tight
     assert abs(r.width) < 1e-12
 
 
 def test_bow_not_identified():
+    from partialid import classify_program, is_identified
+    from partialid.program_degree import ProgramKind
+
     V = Variables.from_binary("X", "Y")
     Q = Query.interventional(outcome="Y", do={"X": 1}, value=1)
     g = CausalDiagram.from_edges(["X", "Y"], directed=[("X", "Y")], bidirected=[("X", "Y")])
+    assert not is_identified(g, ["X"], ["Y"])
+    assert classify_program(g, query=Q).kind == ProgramKind.LINEAR
     idr = try_identify(V, RE1, Q, Assumptions.from_diagram(g))
     assert not idr.identified
+
+
+def test_frontdoor_confounding_classify_point():
+    from partialid import classify_program
+    from partialid.program_degree import ProgramKind
+
+    g = CausalDiagram.from_edges(
+        ["X", "Z", "Y"],
+        directed=[("X", "Z"), ("Z", "Y")],
+        bidirected=[("X", "Y")],
+    )
+    Q = Query.interventional(outcome="Y", do={"X": 1}, value=1)
+    prog = classify_program(g, query=Q)
+    assert prog.kind == ProgramKind.POINT
+    assert any("ID" in n for n in prog.notes)
+
+
+def test_ate_point_id_markov():
+    V = Variables.from_binary("X", "Y")
+    Q = Query.ate(outcome="Y", treatment="X")
+    g = CausalDiagram.from_edges(["X", "Y"], directed=[("X", "Y")])
+    a = Assumptions.from_diagram(g)
+    idr = try_identify(V, RE1, Q, a)
+    assert idr.identified
+    assert idr.criterion == "id/ate"
+    # P(Y=1|X=1) - P(Y=1|X=0) = 0.70 - 0.40 = 0.30 on RE1
+    assert abs(idr.value - 0.30) < 1e-8
+    r = bound(V, RE1, Q, a)
+    assert r.method == "id/ate"
+    assert r.tight
+    assert abs(r.lower - 0.30) < 1e-8

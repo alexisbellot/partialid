@@ -100,6 +100,21 @@ def analyze_degree1(
 
     ancestral = directed_ancestors(g, seeds)
     ancestral |= directed_ancestors(g, treatments or ())
+    # When some endogenous nodes are latent, observed proxies still index P
+    # (measurement-error graphs). They may be descendants of the latent outcome
+    # and are not in the directed-ancestral set of Q, but dropping them makes
+    # the observational constraints ill-defined and can spuriously claim POINT ID.
+    if variables is not None:
+        obs = getattr(variables, "observed", None)
+        names = getattr(variables, "names", None)
+        if obs is not None and names is not None and set(obs) != set(names):
+            keep_obs = set(obs) & set(g.nodes)
+            if keep_obs - ancestral:
+                notes.append(
+                    f"kept observed proxies {sorted(keep_obs - ancestral)} "
+                    "for latent endogenous / measurement error"
+                )
+            ancestral |= keep_obs
     notes.append(f"ancestral={sorted(ancestral)}")
 
     g_an = induced_subgraph(g, ancestral)

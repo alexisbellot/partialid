@@ -29,35 +29,51 @@ latent structure explicitly.
 | `[tuple(nodes)]` / `from_order` | one latent on everyone (Manski) | linear |
 | `[]` | no latent confounding | point ID / Markovian |
 
-With an **explicit diagram**, `bound` first tries identification (g-formula /
-back-door / front-door). When identified, you get a point interval
-(`method` starts with `id/`).
+With an **explicit diagram**, `bound` runs **Shpitser–Pearl ID** for
+interventional queries (and ATE as a difference of two ID’d margins). When
+identified, you get a point interval (`method` is `id` or `id/ate`). Classical
+g-formula / back-door / front-door are special cases of ID, not separate engines.
+
+Check identification without solving an LP:
+
+```python
+from partialid import CausalDiagram, is_identified, identify_query
+
+g = CausalDiagram.from_edges(
+    ["X", "Z", "Y"],
+    directed=[("X", "Z"), ("Z", "Y")],
+    bidirected=[("X", "Y")],
+)
+assert is_identified(g, ["X"], ["Y"])  # classic front-door
+```
 
 `Assumptions.order("Z", "X", "Y")` is Manski: complete directed order plus
-`bidirected=[("Z","X","Y")]`.
+`bidirected=[("Z","X","Y")]` — ID is skipped (never point-identified for `do`).
 
 ## Program degree (which solver?)
 
 `classify_program` implements THEORY §6 under hypothesis (H): ancestral trim,
-footprint free blocks (C1), directed-cut C2 (WL–WR), then
-\(\mathrm{degree}=\sum\lambda\) over surviving free districts.
+footprint free blocks (C1), directed-cut C2 (WL–WR), then **ID** (empty free
+set → `POINT`), else \(\mathrm{degree}=\sum\lambda\) over surviving free
+districts.
 
 | Degree | Kind | Default solver |
 |---|---|---|
-| 0 | point | ancestral TypeSpace / ID path in `bound` |
-| 1 | linear | fiber / LP / instrument (Prop. 8.4) |
-| 2 | bilinear/latent or bilinear/factor | `gpp/latent` or `gpp` |
+| 0 | point | ID in `bound` (`method` `id` / `id/ate`), or ancestral TypeSpace |
+| 1 | linear | fiber / LP / instrument via classify C2 (WL–WR cut) |
+| 2 | bilinear/latent or bilinear/factor | `gpp/latent` or `gpp` (`prefer_gpp=True`) |
 | ≥3 | polynomial | **outer LP** (`tight=False`) |
 
-For deg≥3, opt into the nested multilinear solver with
-`bound(..., prefer_poly=True)` / `formulate(..., prefer_poly=True)`
-(`method` → `gpp/poly` when the size gate passes; factor \(K=3\) only today).
-Latent \(\lambda\ge 3\) still falls back to outer even with `prefer_poly=True`.
+Knobs on `bound` / `formulate`:
 
-**`classify` is not full ID.** Empty free set → `POINT`, but identified
-front-door / back-door graphs may still classify as `LINEAR` until the separate
-ID pass in `bound` returns a point interval (`method` starts with `id/`).
-Use `bound` (or `try_identify`) for identification, not `ProgramKind` alone.
+- `prefer_gpp=True` (default) — bilinear → nested GPP; set `False` for outer.
+- `prefer_poly=False` (default) — deg≥3 → outer; set `True` for size-gated
+  factor-\(K=3\) nested multilinear (`method` → `gpp/poly`).
+  Latent \(\lambda\ge 3\) still falls back to outer even with `prefer_poly=True`.
+
+For interventional / ATE queries, `classify_program` and `bound` agree on ID:
+front-door / napkin → `POINT` / `method="id"`. Counterfactuals (PNS, …) are
+not handled by interventional ID.
 
 ```python
 from partialid import CausalDiagram, Query, classify_program
@@ -82,7 +98,7 @@ print(classify_program(g2, query=Query.pns()).kind)
 # bilinear/factor
 
 # e.g. P(Y_z=1, W_x=0 | R=1)
-from partialid.query_ast import Atom, Lit, PO
+from partialid import Atom, Lit, PO
 
 Q = Query.conditional(
     Atom(Lit(PO("Y", {"Z": 1}), 1), Lit(PO("W", {"X": 0}), 0)),

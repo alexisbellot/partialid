@@ -46,6 +46,10 @@ Q = Query.ate(outcome="Y", treatment="X")
 Q = Query.pns(treatment="X", outcome="Y")
 ```
 
+Named factories build an AST under the hood. Arbitrary counterfactuals use
+`Query.from_expr` / `Query.conditional` with `PO`, `Lit`, `Atom`, `LinComb`,
+`Cond` (see [Graphs](graphs.md) and [API · Query](api/query.md)).
+
 Use `Q.describe()` in logs / `BoundResult.summary(Q)`.
 
 ### Assumptions
@@ -64,6 +68,13 @@ a = Assumptions.iv("Z", "X", "Y", monotone=True)       # diagram (+ no-defiers)
 See the [Assumptions](assumptions.md) catalog for the full list (MTR/MTS, IV,
 Tan MSM, Rosenbaum Γ, \(c\)-dependence, margin budgets, …).
 
+### Diagrams & program degree
+
+Explicit graphs use `CausalDiagram` / `Assumptions.from_diagram`. `bound` runs
+Shpitser–Pearl ID first (`is_identified` / `identify_query`); otherwise it
+routes by `classify_program` (which also marks ID success as `POINT`, else
+LP / bilinear GPP / outer for deg≥3). See [Graphs](graphs.md).
+
 ## Tight vs outer
 
 | Signal | Meaning |
@@ -72,10 +83,18 @@ Tan MSM, Rosenbaum Γ, \(c\)-dependence, margin budgets, …).
 | `tight=False` | Valid **outer** approximation (may be loose) |
 | `UserWarning` | Same issue, human-readable |
 
-Typical cause of `tight=False`: multi c-component / merged-latent fallback.
-See [Stability](stability.md).
+Common causes of `tight=False`:
+
+- degree ≥3 (polynomial) — **default** outer; opt in with `prefer_poly=True`
+- bilinear GPP size-gate failure (`prefer_gpp=False` also forces outer)
+- hard `independence` c-split (factorization incomplete)
+- multi c-component / merged-latent fallback
+
+See [Stability](stability.md) and [Auto routing](auto_routing.md).
 
 ## Method argument
 
 Prefer `method="auto"`. See [Auto routing](auto_routing.md). You do not need
-to choose `dual` / `colgen` / `fiber` for ordinary work.
+to choose `dual` / `colgen` / `fiber` for ordinary work. Formulation knobs
+`prefer_gpp` and `prefer_poly` control GPP vs outer for bilinear / polynomial
+programs.
