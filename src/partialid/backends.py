@@ -69,7 +69,7 @@ def prefer_colgen_auto(lp: LPData, *, threshold: int = AUTO_COLGEN_TYPES) -> boo
     """
     if lp.A_eq is None:
         return False
-    if lp.method_hint in ("mip", "convex", "gpp", "fractional"):
+    if lp.method_hint in ("mip", "convex", "gpp", "gpp/latent", "gpp/poly", "fractional"):
         return False
     if getattr(lp, "c_den", None) is not None:
         return False

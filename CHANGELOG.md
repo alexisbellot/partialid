@@ -10,9 +10,16 @@ versioning follows [SemVer](https://semver.org/) (0.x API may evolve; see
 
 ### Added
 - Latent **hyperedges** in `CausalDiagram.bidirected` (pairs or larger tuples):
-  each hyperedge is one exogenous source. Program-degree classifier
-  (`classify_program`) routes LP vs bilinear (`gpp` / `gpp/latent`) vs
-  polynomial outer from \(\sum d_C\). Sharp nested-LP solver for c-degree-2.
+  each hyperedge is one exogenous source.
+- `classify_program` (THEORY §6): ancestral trim + footprint C1 + directed-cut
+  C2, then \(\sum\lambda\) → POINT / LINEAR / BILINEAR_* / POLYNOMIAL.
+  Records `wl_wr_cut`, `in_hypothesis_H`, post-cut `free_districts`.
+  Formulate/bound dispatch from that label (no classify↔solver split-brain).
+- Sharp nested-LP for bilinear: factor \(K=2\) (`gpp`) and latent c-degree 2
+  (`gpp/latent`).
+- Opt-in nested multilinear for factor \(K=3\): `bound(..., prefer_poly=True)`
+  → `gpp/poly` when the size gate passes. **Default for deg≥3 remains outer**
+  (`tight=False`).
 - `classify_program` / bilinear–GPP routing accept **counterfactual** LinComb
   queries (PNS, ATE, …): cross-world variables become free blocks (e.g. mediated
   `X↔M→Y` is linear for `P(Y|do(X))` and bilinear/factor for PNS).

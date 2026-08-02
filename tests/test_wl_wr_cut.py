@@ -5,6 +5,7 @@ from __future__ import annotations
 from partialid import Assumptions, CausalDiagram, Query, Variables
 from partialid.formulate import formulate
 from partialid.instrument import detect_wl_wr_cut
+from partialid.program_degree import ProgramKind, classify_program
 
 
 def test_prop84_confounded_wl_is_lp_not_gpp():
@@ -21,6 +22,11 @@ def test_prop84_confounded_wl_is_lp_not_gpp():
     cells = V.cells(g.topological_order())
     P = {c: 1.0 / len(cells) for c in cells}
     Q = Query.interventional(outcome="Y", do={"X": 1}, value=1)
+    prog = classify_program(g, query=Q)
+    assert prog.kind == ProgramKind.LINEAR
+    assert prog.degree == 1
+    assert prog.wl_wr_cut is not None
+    assert set(prog.wl_wr_cut[1]) == {"X", "Y"}
     lp = formulate(V, P, Q, Assumptions.from_diagram(g))
     assert lp.method_hint == "lp"
     assert lp.gpp is None
@@ -53,3 +59,10 @@ def test_classic_iv_wl_wr():
     )
     cut = detect_wl_wr_cut(g, treatments=["X"], outcome="Y")
     assert cut == (("Z",), ("X", "Y"))
+    prog = classify_program(
+        g, query=Query.interventional(outcome="Y", do={"X": 1}, value=1)
+    )
+    assert prog.kind == ProgramKind.LINEAR
+    assert prog.wl_wr_cut is not None
+    assert set(prog.wl_wr_cut[0]) == {"Z"}
+    assert set(prog.wl_wr_cut[1]) == {"X", "Y"}

@@ -55,7 +55,7 @@ Method = Literal[
 
 def _select_auto_method(lp) -> str:
     """Track A2: fiber → dual-sized lp → colgen → dense lp."""
-    if lp.method_hint in ("mip", "convex", "gpp", "gpp/latent", "fractional"):
+    if lp.method_hint in ("mip", "convex", "gpp", "gpp/latent", "gpp/poly", "fractional"):
         return "gpp" if lp.method_hint.startswith("gpp") else lp.method_hint
     if getattr(lp, "c_den", None) is not None:
         return "fractional"
@@ -175,6 +175,8 @@ def bound(
     method: Method = "auto",
     optimize: bool = True,
     recover_primal: bool = True,
+    prefer_gpp: bool = True,
+    prefer_poly: bool = False,
 ) -> BoundResult:
     """Compute tight numeric bounds on ``query`` under ``assumptions``.
 
@@ -205,6 +207,12 @@ def bound(
         When the dual LP shortcut is used (large eq-only programs), restore
         witness vectors ``q_lower`` / ``q_upper``. Set False to skip recovery
         and keep dual-only speed (witnesses will be NaN).
+    prefer_gpp :
+        When classify yields bilinear factor/latent, build a GPP (default True).
+        Set False to force the merged-latent outer LP.
+    prefer_poly :
+        When classify yields POLYNOMIAL (deg≥3), try nested multilinear
+        ``gpp/poly`` (default False → outer LP with ``tight=False``).
     """
     assumptions = as_assumption_set(assumptions)
     notes_pre: list[str] = []
@@ -432,7 +440,15 @@ def bound(
                 )
 
     t0 = perf_counter()
-    lp = formulate(variables, data, query, assumptions, optimize=optimize)
+    lp = formulate(
+        variables,
+        data,
+        query,
+        assumptions,
+        optimize=optimize,
+        prefer_gpp=prefer_gpp,
+        prefer_poly=prefer_poly,
+    )
     t1 = perf_counter()
 
     def _finish(result: BoundResult) -> BoundResult:
@@ -451,15 +467,20 @@ def bound(
         use = "lp"
     force_dual = method == "dual"
 
-    gpp_hint = lp.method_hint in ("gpp", "gpp/latent")
+    gpp_hint = lp.method_hint in ("gpp", "gpp/latent", "gpp/poly")
     if use == "gpp" or (gpp_hint and method in ("auto", "gpp", "lp")):
         from .gpp import solve_bounds_gpp
+        from .poly_gpp import PolyGPPData, solve_bounds_poly
 
         if lp.gpp is None:
             raise ValueError("method='gpp' requires a factorized GPP formulation")
-        gb = solve_bounds_gpp(lp.gpp)
+        if isinstance(lp.gpp, PolyGPPData) or lp.method_hint == "gpp/poly":
+            gb = solve_bounds_poly(lp.gpp)
+            method_tag = "gpp/poly"
+        else:
+            gb = solve_bounds_gpp(lp.gpp)
+            method_tag = "gpp/latent" if lp.method_hint == "gpp/latent" else "gpp"
         t2 = perf_counter()
-        method_tag = "gpp/latent" if lp.method_hint == "gpp/latent" else "gpp"
         if not gb.success:
             t_fb0 = perf_counter()
             lp_outer = formulate(
@@ -469,6 +490,7 @@ def bound(
                 assumptions,
                 optimize=optimize,
                 prefer_gpp=False,
+                prefer_poly=False,
             )
             t_fb1 = perf_counter()
             lo_r, hi_r = solve_bounds_lp(lp_outer, recover_primal=recover_primal)

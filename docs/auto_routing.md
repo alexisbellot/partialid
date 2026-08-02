@@ -38,10 +38,12 @@ Special assumption classes force other paths earlier:
 | `convex` | `f_sensitivity` (CVXPY) |
 | `gpp` | \(K=2\) free c-degree-1 districts (factor bilinear) |
 | `gpp/latent` | one district with c-degree 2 (two latent hyperedges) |
+| `gpp/poly` | deg≥3 with `prefer_poly=True` and size gate (factor \(K=3\)) |
 | `fractional` | conditional ratio programs |
 
 Diagram program class (before numeric solve) is summarized by
 `classify_program` — see [Graphs](graphs.md#program-degree-which-solver).
+Degree ≥3 uses an outer LP unless you pass `prefer_poly=True` to `bound`.
 
 ## What you should do
 

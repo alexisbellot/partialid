@@ -13,6 +13,8 @@ face assumptions and **anchored** sensitivity budgets. Prefer
 - Instrument R-side LPs; support bounds via MIP
 - **Bilinear GPP**: \(K=2\) free c-degree-1 districts (`gpp`) or one
   c-degree-2 district with two latent hyperedges (`gpp/latent`)
+- **Polynomial (opt-in):** factor \(K=3\) nested multilinear via
+  `bound(..., prefer_poly=True)` → `gpp/poly` when the size gate passes
 
 ## Out of core (workarounds)
 
@@ -21,8 +23,9 @@ face assumptions and **anchored** sensitivity budgets. Prefer
 | Unanchored Rosenbaum \(\Gamma\) | Bilinear | `anchored=True` |
 | Raw MI / KL budgets | Transcendental | margin budget proxy |
 | Hard independence c-split | Factorization incomplete | merged outer / ID |
-| Large multi-district GPP | Polynomial | outer LP (`tight=False`) |
-| c-degree ≥3 in one district | Polynomial degree ≥3 | outer LP (`tight=False`) |
+| Large multi-district GPP | Size gate | outer LP (`tight=False`) |
+| Degree ≥3 (default) | Polynomial | outer LP (`tight=False`); opt in with `prefer_poly=True` |
+| Latent c-degree ≥3 | Beyond size-gated poly | outer LP even with `prefer_poly=True` |
 
 Latent hyperedges: each `bidirected` tuple is one exogenous source. Pairwise
 `[("X","M"),("M","Y")]` is c-degree 2 (bilinear); `[("X","M","Y")]` is one

@@ -130,6 +130,7 @@ def test_sharp_bilinear_tighter_than_single_latent_lp():
 
 
 def test_polynomial_c_degree_3_uses_outer():
+    """λ=3 triangle: classify POLYNOMIAL; default bound is outer (tight=False)."""
     V = Variables.from_binary("X", "Z", "Y")
     P = _softmax_P(V, seed=0)
     Q = Query.interventional(outcome="Y", do={"X": 1}, value=1)
@@ -138,9 +139,15 @@ def test_polynomial_c_degree_3_uses_outer():
         directed=[("X", "Z"), ("X", "Y"), ("Z", "Y")],
         bidirected=[("X", "Z"), ("Z", "Y"), ("X", "Y")],
     )
+    prog = classify_program(g, query=Q)
+    assert prog.kind == ProgramKind.POLYNOMIAL
+    assert prog.in_hypothesis_H is False
     r = bound(V, P, Q, Assumptions.from_diagram(g))
+    assert r.method != "gpp/poly"
     assert r.tight is False
-    assert any("polynomial" in n or "outer" in n for n in r.notes)
+    assert any(
+        "polynomial" in n or "outer" in n or "prefer_poly" in n for n in r.notes
+    )
 
 
 def _mediated_one_latent():

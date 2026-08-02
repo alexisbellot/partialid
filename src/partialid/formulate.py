@@ -64,7 +64,7 @@ class LPData:
     allowed_types: np.ndarray  # boolean mask over all types (after hard faces)
     cells: list[tuple]
     P_vec: np.ndarray
-    method_hint: str = "lp"  # "lp" | "fiber" | "mip" | "convex" | "gpp" | "fractional"
+    method_hint: str = "lp"  # "lp" | "fiber" | "mip" | "convex" | "gpp" | "gpp/latent" | "gpp/poly" | "fractional"
     notes: list[str] = field(default_factory=list)
     support_k: int | None = None
     f_sensitivity: FSensitivityAssumption | None = None
@@ -74,7 +74,7 @@ class LPData:
     c_den: np.ndarray | None = None  # fractional denom coefficients
     # True when the LP is a valid outer approximation (may be loose)
     outer_approximation: bool = False
-    # Optional factorized bilinear GPP (method_hint="gpp")
+    # Optional factorized GPP / poly (method_hint startswith "gpp")
     gpp: object | None = None
 
 
@@ -426,6 +426,7 @@ def formulate(
     *,
     optimize: bool = True,
     prefer_gpp: bool = True,
+    prefer_poly: bool = False,
 ) -> LPData:
     """Build the partial-identification LP (linear reduction or instrument R-side).
 
@@ -436,10 +437,14 @@ def formulate(
         If False, use a *naive* baseline: full joint type expansion under maximal
         confounding (no inert prune, no instrument factorization).
     prefer_gpp :
-        When ≥2 free confounded districts fit the size gate, build a bilinear GPP
-        instead of the merged-latent outer LP. Set False to force the outer LP.
+        When classify yields bilinear factor/latent and size gates pass, build a
+        GPP instead of the merged-latent outer LP. Set False to force the outer LP.
+    prefer_poly :
+        When classify yields POLYNOMIAL (deg≥3), try the nested multilinear
+        ``gpp/poly`` solver. Default False: use the merged-latent outer LP
+        (``tight=False``). Opt in with ``prefer_poly=True``.
     """
-    from .instrument import detect_instrument_split, detect_wl_wr_cut, formulate_instrument
+    from .instrument import formulate_instrument
 
     assumptions = as_assumption_set(assumptions)
     notes: list[str] = []
@@ -453,35 +458,15 @@ def formulate(
 
     diagram = _apply_exclusions(diagram, assumptions)
 
-    # Prop. 8.4 WL–WR cut → tight R-side LP (before merging / GPP)
+    # Inert prune first; WL–WR / instrument LP comes from post-cut classify below
+    # (single cut authority — THEORY §6 C2).
     if optimize:
-        split = None
-        treatments = list(query.intervention.keys())
-        if query.kind == "ate":
-            treatments = [(query.meta or {}).get("treatment", "X")]
-        if query.kind in ("interventional", "ate"):
-            split = detect_wl_wr_cut(
-                diagram,
-                treatments=treatments,
-                outcome=query.outcome,
-            )
-        if split is None and query.kind in ("interventional", "ate"):
-            split = detect_instrument_split(diagram)
-        if split is not None and query.kind in ("interventional", "ate"):
-            instruments, r_side = split
-            notes.append(f"Prop. 8.4 WL–WR cut: WL={list(instruments)}, WR={list(r_side)}")
-            lp = formulate_instrument(
-                variables, data, query, diagram, instruments, r_side, assumptions
-            )
-            lp.notes = notes + lp.notes
-            lp.outer_approximation = False
-            return lp
-
-        # Inert-variable pruning for order-only interventional queries
-        variables, data, diagram = _inert_prune_order_only(variables, data, query, diagram, notes)
+        variables, data, diagram = _inert_prune_order_only(
+            variables, data, query, diagram, notes
+        )
 
     outer = False
-    # Program-degree router: any LinComb / fixed-denom Cond AST (not named-only).
+    # Program-degree router: dispatch solely from post-cut classify (THEORY §6).
     if optimize and query.expr is not None:
         from .degree1 import analyze_degree1, induced_subgraph
         from .program_degree import ProgramKind, classify_program
@@ -503,9 +488,16 @@ def formulate(
             outcome=query.outcome,
             query=query,
             variables=variables,
-            has_wl_wr_cut=False,
         )
-        notes.extend([n for n in prog.notes if n.startswith("program:")])
+        notes.extend(
+            [
+                n
+                for n in prog.notes
+                if n.startswith("program:")
+                or n.startswith("C2 ")
+                or n.startswith("out of (H)")
+            ]
+        )
 
         def _gpp_query_ok(diag: CausalDiagram, vars_: Variables, data_: Mapping) -> bool:
             if isinstance(query.expr, _LinComb):
@@ -550,174 +542,181 @@ def formulate(
             outer = True
             diagram = _merged_latent_diagram(diagram)
 
-        if fac.lp_reducible and len(fac.free_districts) == 1:
-            D = fac.free_districts[0]
-            r_side = tuple(n for n in diagram.topological_order() if n in D)
-            an_order = tuple(n for n in diagram.topological_order() if n in fac.ancestral)
-            exo = fac.exogenous
-
+        def _restrict_ancestral() -> None:
+            nonlocal variables, data, diagram
+            an_order = tuple(
+                n for n in diagram.topological_order() if n in fac.ancestral
+            )
             if set(an_order) != set(diagram.nodes):
                 data = _remargin_data(variables, data, an_order)
                 variables = variables.restrict(an_order)
                 diagram = induced_subgraph(diagram, an_order)
                 notes.append(f"restricted to ancestral {list(an_order)}")
 
-            if exo:
-                treatments = list(query.intervention.keys())
-                if query.kind == "ate":
-                    treatments = [str((query.meta or {}).get("treatment", "X"))]
-                split = None
-                if query.kind in ("interventional", "ate"):
-                    split = detect_wl_wr_cut(
-                        diagram,
-                        treatments=treatments,
-                        outcome=query.outcome,
-                    )
-                if split is not None and query.kind in ("interventional", "ate"):
-                    instruments, wr = split
-                    notes.append(
-                        f"c-degree-1 / Prop. 8.4: WL={list(instruments)}, WR={list(wr)}"
-                    )
-                    lp = formulate_instrument(
-                        variables,
-                        data,
-                        query,
-                        diagram,
-                        instruments,
-                        wr,
-                        assumptions,
-                    )
-                    lp.notes = notes + lp.notes
-                    lp.outer_approximation = False
-                    return lp
+        free = prog.free_districts
 
-                if query.kind in ("interventional", "ate") and _exo_are_markovian_children(
-                    diagram, frozenset(D), exo
-                ):
-                    # Absorb Markovian children (e.g. Y given M) into the objective;
-                    # sharp LP lives on the free confounded district only.
-                    from .types_canon import evaluate_world
-
-                    an_obs = variables.observed_names(an_order)
-                    parent_of = {v: tuple(diagram.parents(v)) for v in exo}
-                    kernels = {
-                        v: _empirical_kernel(variables, an_obs, data, v, parent_of[v])
-                        for v in exo
-                    }
-                    data_r = _remargin_data(variables, data, r_side)
-                    variables_r = variables.restrict(r_side)
-                    diagram_r = induced_subgraph(diagram, r_side)
-                    notes.append(
-                        f"c-degree-1 LP on free district {list(r_side)}; "
-                        f"absorbed Markovian exo {list(exo)} into objective"
-                    )
-                    ts = TypeSpace.from_diagram(variables_r, diagram_r)
-                    cells, P = _normalize_P(variables_r, ts.order, data_r)
-                    allow = _hard_face_mask(ts, assumptions)
-                    c = np.zeros(ts.n_types, dtype=float)
-                    if query.kind == "ate":
-                        meta = query.meta or {}
-                        treatment = str(meta.get("treatment", "X"))
-                        t1, t0 = meta.get("t1", 1), meta.get("t0", 0)
-                        yv = meta.get("y", query.value)
-                        for t in range(ts.n_types):
-                            if not allow[t]:
-                                continue
-                            w1 = evaluate_world(
-                                ts.order,
-                                ts.response_fns,
-                                ts.joint_types[t],
-                                ts.diagram,
-                                {treatment: t1},
-                            )
-                            w0 = evaluate_world(
-                                ts.order,
-                                ts.response_fns,
-                                ts.joint_types[t],
-                                ts.diagram,
-                                {treatment: t0},
-                            )
-                            c[t] = _outcome_mass_with_kernels(
-                                w1, exo, kernels, parent_of, query.outcome, yv
-                            ) - _outcome_mass_with_kernels(
-                                w0, exo, kernels, parent_of, query.outcome, yv
-                            )
-                    else:
-                        interv = dict(query.intervention)
-                        for t in range(ts.n_types):
-                            if not allow[t]:
-                                continue
-                            w = evaluate_world(
-                                ts.order,
-                                ts.response_fns,
-                                ts.joint_types[t],
-                                ts.diagram,
-                                interv,
-                            )
-                            c[t] = _outcome_mass_with_kernels(
-                                w, exo, kernels, parent_of, query.outcome, query.value
-                            )
-                    n = ts.n_types
-                    eq_rows = []
-                    eq_rhs = []
-                    for i, cell in enumerate(cells):
-                        row = np.zeros(n)
-                        for ti in ts.fiber[cell]:
-                            if allow[ti]:
-                                row[ti] = 1.0
-                        eq_rows.append(row)
-                        eq_rhs.append(P[i])
-                    return LPData(
-                        c=c,
-                        A_eq=sparse.csr_matrix(np.vstack(eq_rows)),
-                        b_eq=np.asarray(eq_rhs, dtype=float),
-                        A_ub=None,
-                        b_ub=None,
-                        type_space=ts,
-                        allowed_types=allow,
-                        cells=cells,
-                        P_vec=P,
-                        method_hint="fiber",
-                        notes=notes,
-                        outer_approximation=False,
-                    )
-
+        if prog.kind == ProgramKind.LINEAR:
+            # Prefer recorded C2 cut → instrument LP (same as early Prop. 8.4 path)
+            if (
+                prog.wl_wr_cut is not None
+                and query.kind in ("interventional", "ate")
+            ):
+                _restrict_ancestral()
+                instruments, wr = prog.wl_wr_cut
                 notes.append(
-                    f"c-degree-1 free district {list(r_side)} with exo {list(exo)}; "
-                    f"no WL–WR / absorption path for query kind {query.kind!r} — "
-                    "using ancestral TypeSpace (may merge districts)."
+                    f"Prop. 8.4 WL–WR cut (classify C2): "
+                    f"WL={list(instruments)}, WR={list(wr)}"
                 )
-                # Fall through: multi-c-component merge may apply below.
-            else:
-                # Single free block, no exogenous: TypeSpace on D only
-                if set(an_order) != set(r_side):
-                    data = _remargin_data(variables, data, r_side)
-                variables = variables.restrict(r_side)
-                diagram = induced_subgraph(diagram, r_side)
-                notes.append(f"c-degree-1 single-block LP on {list(r_side)}")
-                # fall through with restricted diagram
+                lp = formulate_instrument(
+                    variables, data, query, diagram, instruments, wr, assumptions
+                )
+                lp.notes = notes + lp.notes
+                lp.outer_approximation = False
+                return lp
 
-        elif fac.lp_reducible and len(fac.free_districts) == 0:
-            # Markovian ancestral — should have been ID'd; keep diagram, no merge
-            an_order = tuple(n for n in diagram.topological_order() if n in fac.ancestral)
+            if len(free) == 1:
+                D = free[0]
+                r_side = tuple(n for n in diagram.topological_order() if n in D)
+                an_order = tuple(
+                    n for n in diagram.topological_order() if n in fac.ancestral
+                )
+                exo = tuple(
+                    n for n in an_order if n not in D
+                )
+
+                if set(an_order) != set(diagram.nodes):
+                    data = _remargin_data(variables, data, an_order)
+                    variables = variables.restrict(an_order)
+                    diagram = induced_subgraph(diagram, an_order)
+                    notes.append(f"restricted to ancestral {list(an_order)}")
+
+                if exo:
+                    if query.kind in ("interventional", "ate") and _exo_are_markovian_children(
+                        diagram, frozenset(D), exo
+                    ):
+                        from .types_canon import evaluate_world
+
+                        an_obs = variables.observed_names(an_order)
+                        parent_of = {v: tuple(diagram.parents(v)) for v in exo}
+                        kernels = {
+                            v: _empirical_kernel(
+                                variables, an_obs, data, v, parent_of[v]
+                            )
+                            for v in exo
+                        }
+                        data_r = _remargin_data(variables, data, r_side)
+                        variables_r = variables.restrict(r_side)
+                        diagram_r = induced_subgraph(diagram, r_side)
+                        notes.append(
+                            f"c-degree-1 LP on free district {list(r_side)}; "
+                            f"absorbed Markovian exo {list(exo)} into objective"
+                        )
+                        ts = TypeSpace.from_diagram(variables_r, diagram_r)
+                        cells, P = _normalize_P(variables_r, ts.order, data_r)
+                        allow = _hard_face_mask(ts, assumptions)
+                        c = np.zeros(ts.n_types, dtype=float)
+                        if query.kind == "ate":
+                            meta = query.meta or {}
+                            treatment = str(meta.get("treatment", "X"))
+                            t1, t0 = meta.get("t1", 1), meta.get("t0", 0)
+                            yv = meta.get("y", query.value)
+                            for t in range(ts.n_types):
+                                if not allow[t]:
+                                    continue
+                                w1 = evaluate_world(
+                                    ts.order,
+                                    ts.response_fns,
+                                    ts.joint_types[t],
+                                    ts.diagram,
+                                    {treatment: t1},
+                                )
+                                w0 = evaluate_world(
+                                    ts.order,
+                                    ts.response_fns,
+                                    ts.joint_types[t],
+                                    ts.diagram,
+                                    {treatment: t0},
+                                )
+                                c[t] = _outcome_mass_with_kernels(
+                                    w1, exo, kernels, parent_of, query.outcome, yv
+                                ) - _outcome_mass_with_kernels(
+                                    w0, exo, kernels, parent_of, query.outcome, yv
+                                )
+                        else:
+                            interv = dict(query.intervention)
+                            for t in range(ts.n_types):
+                                if not allow[t]:
+                                    continue
+                                w = evaluate_world(
+                                    ts.order,
+                                    ts.response_fns,
+                                    ts.joint_types[t],
+                                    ts.diagram,
+                                    interv,
+                                )
+                                c[t] = _outcome_mass_with_kernels(
+                                    w,
+                                    exo,
+                                    kernels,
+                                    parent_of,
+                                    query.outcome,
+                                    query.value,
+                                )
+                        n = ts.n_types
+                        eq_rows = []
+                        eq_rhs = []
+                        for i, cell in enumerate(cells):
+                            row = np.zeros(n)
+                            for ti in ts.fiber[cell]:
+                                if allow[ti]:
+                                    row[ti] = 1.0
+                            eq_rows.append(row)
+                            eq_rhs.append(P[i])
+                        return LPData(
+                            c=c,
+                            A_eq=sparse.csr_matrix(np.vstack(eq_rows)),
+                            b_eq=np.asarray(eq_rhs, dtype=float),
+                            A_ub=None,
+                            b_ub=None,
+                            type_space=ts,
+                            allowed_types=allow,
+                            cells=cells,
+                            P_vec=P,
+                            method_hint="fiber",
+                            notes=notes,
+                            outer_approximation=False,
+                        )
+
+                    notes.append(
+                        f"LINEAR free district {list(r_side)} with exo {list(exo)}; "
+                        f"no absorption path for query kind {query.kind!r} — "
+                        "using ancestral TypeSpace (may merge districts)."
+                    )
+                    # Fall through to TypeSpace on ancestral diagram.
+                else:
+                    if set(an_order) != set(r_side):
+                        data = _remargin_data(variables, data, r_side)
+                    variables = variables.restrict(r_side)
+                    diagram = induced_subgraph(diagram, r_side)
+                    notes.append(f"c-degree-1 single-block LP on {list(r_side)}")
+                    # fall through with restricted diagram
+
+        elif prog.kind == ProgramKind.POINT:
+            an_order = tuple(
+                n for n in diagram.topological_order() if n in fac.ancestral
+            )
             if set(an_order) != set(diagram.nodes):
                 diagram = induced_subgraph(diagram, an_order)
                 notes.append(
-                    "c-degree-1: no free district; restricted ancestral "
+                    "POINT: no free district; restricted ancestral "
                     f"{list(an_order)} (no merge)"
                 )
 
         elif prog.kind == ProgramKind.BILINEAR_LATENT and prefer_gpp:
-            # One district, two latent hyperedges → sharp nested-LP bilinear
             from .latent_bilinear import build_latent_bilinear
 
-            an_order = tuple(n for n in diagram.topological_order() if n in fac.ancestral)
-            if set(an_order) != set(diagram.nodes):
-                data = _remargin_data(variables, data, an_order)
-                variables = variables.restrict(an_order)
-                diagram = induced_subgraph(diagram, an_order)
-                notes.append(f"restricted to ancestral {list(an_order)}")
-            D = fac.free_districts[0]
+            _restrict_ancestral()
+            D = free[0]
             d_order = tuple(n for n in diagram.topological_order() if n in D)
             if set(d_order) != set(diagram.nodes):
                 data = _remargin_data(variables, data, d_order)
@@ -738,50 +737,21 @@ def formulate(
                     "using merged-latent outer LP (valid, may be conservative)."
                 )
 
-        elif len(fac.free_districts) >= 2:
-            # Prop. 8.4 cut on the ancestral graph, else Zhang GPP (K=2)
+        elif prog.kind == ProgramKind.BILINEAR_FACTOR and prefer_gpp:
             from .gpp import build_gpp, gpp_size_ok
+            from .types_canon import _all_functions as _afns
 
-            an_order = tuple(n for n in diagram.topological_order() if n in fac.ancestral)
-            if set(an_order) != set(diagram.nodes):
-                data = _remargin_data(variables, data, an_order)
-                variables = variables.restrict(an_order)
-                diagram = induced_subgraph(diagram, an_order)
-                notes.append(f"restricted to ancestral {list(an_order)}")
-
-            split_an = detect_wl_wr_cut(
-                diagram,
-                treatments=list(query.intervention.keys()),
-                outcome=query.outcome,
+            _restrict_ancestral()
+            exo = tuple(
+                n
+                for n in diagram.topological_order()
+                if not any(n in d for d in free)
             )
-            if split_an is not None and query.kind in ("interventional", "ate"):
-                instruments, r_side = split_an
-                notes.append(
-                    f"Prop. 8.4 WL–WR cut (ancestral): WL={list(instruments)}, WR={list(r_side)}"
-                )
-                lp = formulate_instrument(
-                    variables, data, query, diagram, instruments, r_side, assumptions
-                )
-                lp.notes = notes + lp.notes
-                lp.outer_approximation = False
-                return lp
-            if split_an is not None:
-                instruments, r_side = split_an
-                notes.append(
-                    f"Prop. 8.4 WL–WR cut available (WL={list(instruments)}, "
-                    f"WR={list(r_side)}) but instrument LP skipped for "
-                    f"query kind {query.kind!r}"
-                )
-
-            free = fac.free_districts
-            exo = tuple(n for n in diagram.topological_order() if not any(n in d for d in free))
             try:
                 if exo:
                     raise ValueError("exogenous nodes with ≥2 free districts")
-                if prog.kind == ProgramKind.POLYNOMIAL:
-                    raise ValueError("polynomial (K≥3 or c-degree≥3); no sharp GPP yet")
-                from .types_canon import _all_functions as _afns
-
+                if len(free) != 2:
+                    raise ValueError(f"bilinear/factor expects K=2; got {len(free)}")
                 order_peek = diagram.topological_order()
                 counts = []
                 for d in free:
@@ -792,38 +762,81 @@ def formulate(
                         din = variables.cells(parents) if parents else []
                         n *= len(_afns(din, variables.domains[v]))
                     counts.append(n)
-                if prefer_gpp and len(free) == 2 and gpp_size_ok(counts):
+                if not gpp_size_ok(counts):
+                    raise ValueError(f"GPP too large: {counts}")
+                if not _gpp_query_ok(diagram, variables, data):
+                    raise ValueError(
+                        "GPP requires LinComb or fixed-denom Cond (PN/PS)"
+                    )
+                gpp = build_gpp(
+                    variables, data, query, diagram, free, notes=notes
+                )
+                if isinstance(query.expr, _Cond):
+                    gpp.notes = list(gpp.notes) + [
+                        "GPP Cond: fixed observational denominator "
+                        "(Tian–Pearl PN/PS linearization)"
+                    ]
+                return _gpp_stub(gpp, hint="gpp")
+            except Exception as exc:
+                _merged_outer(
+                    f"bilinear/factor GPP unavailable ({exc}); "
+                    "using merged-latent outer LP (valid, may be conservative)."
+                )
+
+        elif prog.kind == ProgramKind.POLYNOMIAL:
+            _restrict_ancestral()
+            poly_built = False
+            if prefer_poly and prefer_gpp:
+                try:
                     if not _gpp_query_ok(diagram, variables, data):
                         raise ValueError(
-                            "GPP requires LinComb or fixed-denom Cond (PN/PS)"
+                            "poly GPP requires LinComb or fixed-denom Cond"
                         )
-                    gpp = build_gpp(
-                        variables,
-                        data,
-                        query,
-                        diagram,
-                        free,
-                        notes=notes,
-                    )
-                    if isinstance(query.expr, _Cond):
-                        notes.append(
-                            "GPP Cond: fixed observational denominator "
-                            "(Tian–Pearl PN/PS linearization)"
-                        )
-                        gpp.notes = list(gpp.notes) + [
-                            "GPP Cond: fixed observational denominator "
-                            "(Tian–Pearl PN/PS linearization)"
-                        ]
-                    return _gpp_stub(gpp, hint="gpp")
-            except Exception as exc:
-                notes.append(f"GPP unavailable ({exc}); falling back to outer LP")
+                    # Factor-polynomial: K=3 free λ=1 districts
+                    if (
+                        len(free) == 3
+                        and all(cd == 1 for cd in prog.c_degrees)
+                    ):
+                        from .poly_gpp import build_poly_factor_gpp
 
-            _merged_outer(
-                f"diagram has {len(diagram.c_components())} c-components; "
-                "using merged-latent outer LP (valid, may be conservative)."
-            )
+                        exo = tuple(
+                            n
+                            for n in diagram.topological_order()
+                            if not any(n in d for d in free)
+                        )
+                        if exo:
+                            raise ValueError(
+                                "poly factor GPP: exogenous nodes present"
+                            )
+                        poly = build_poly_factor_gpp(
+                            variables, data, query, diagram, free, notes=notes
+                        )
+                        poly_built = True
+                        return _gpp_stub(poly, hint="gpp/poly")
+                    # Latent-polynomial (λ≥3): size gate almost always fails;
+                    # leave an explicit note and fall through to outer.
+                    raise ValueError(
+                        f"poly solver: unsupported shape K={len(free)} "
+                        f"c_degrees={prog.c_degrees} (latent λ≥3 not size-gated)"
+                    )
+                except Exception as exc:
+                    notes.append(
+                        f"poly GPP unavailable ({exc}); "
+                        "explicit outer fallback (tight=False)."
+                    )
+            elif not prefer_poly:
+                notes.append(
+                    "polynomial (deg≥3): outer LP by default; "
+                    "pass prefer_poly=True for nested multilinear gpp/poly"
+                )
+            if not poly_built:
+                _merged_outer(
+                    f"program_kind=polynomial degree={prog.degree}; "
+                    "using merged-latent outer LP (valid, may be conservative; "
+                    "not the sharp Classify program)."
+                )
+
         else:
-            # c-degree ≥3 single district, or other non-LP shapes
             _merged_outer(
                 f"program_kind={prog.kind.value} degree={prog.degree}; "
                 "using merged-latent outer LP (valid, may be conservative)."
