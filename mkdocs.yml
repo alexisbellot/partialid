@@ -63,6 +63,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Quickstart: quickstart.md
+  - Tutorials: tutorials.md
   - Concepts: concepts.md
   - Assumptions: assumptions.md
   - Sensitivity analysis: sensitivity.md
@@ -89,7 +90,7 @@ nav:
   - Citing: citing.md
 
 extra:
-  version: 0.1.0a4
+  version: 0.1.0a5
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/alexisbellot/partialid

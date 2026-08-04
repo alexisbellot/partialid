@@ -22,7 +22,7 @@ face assumptions and **anchored** sensitivity budgets. Prefer
 |---|---|---|
 | Unanchored Rosenbaum \(\Gamma\) | Bilinear | `anchored=True` |
 | Raw MI / KL budgets | Transcendental | margin budget proxy |
-| Hard independence c-split | Factorization incomplete | merged outer / ID |
+| Hard independence c-split | Factorization incomplete | always merged outer (`tight=False`) |
 | Large multi-district GPP | Size gate | outer LP (`tight=False`) |
 | Degree ≥3 (default) | Polynomial | outer LP (`tight=False`); opt in with `prefer_poly=True` |
 | Latent c-degree ≥3 | Beyond size-gated poly | outer LP even with `prefer_poly=True` |

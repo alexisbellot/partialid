@@ -46,9 +46,10 @@ interval.
 Recipes (`manski`, `sensitivity_msm`, `iv`) are thin wrappers over these
 atoms. Prefer atoms + `&` when a recipe does not match your setting.
 
-`independence` is structural but often routes to a merged-latent **outer** LP
-(`tight=False`) when a tight factorization is unavailable — see
-[Solvers](advanced/solvers.md).
+`independence` is structural: v1 does **not** solve the sharp product
+factorization. Formulate always forces a merged-latent **outer** LP
+(`tight=False`) — see [Solvers](advanced/solvers.md). Unanchored
+`tan_msm(..., anchored=False)` and unanchored Rosenbaum raise at the factory.
 
 ## Structure vs sensitivity
 

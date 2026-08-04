@@ -101,10 +101,12 @@ def test_independence_outer_note():
     V = Variables.from_binary("X", "Y")
     P = dict(RE1)
     Q = Query.interventional(outcome="Y", do={"X": 1}, value=1)
-    # independence without a split-friendly diagram → outer path notes
+    # independence always forces merged-latent outer (sharp split not in v1)
     a = Assumptions.order("X", "Y") & Assumptions.independence(("X",), ("Y",))
     r = bound(V, P, Q, a, method="lp")
     assert r.success
+    assert not r.tight
+    assert "bounds_may_be_outer" in r.notes
     assert any("independence" in n.lower() for n in r.notes)
 
 

@@ -13,15 +13,17 @@ versioning follows [SemVer](https://semver.org/) (0.x API may evolve; see
   ancestral set, skip spurious ID→POINT when the outcome is latent, and
   remargin observational tables on observed coordinates only.
 
+## [0.1.0a5] — 2026-08-04
+
 ### Added
 - Numbered vignette tutorials under `notebooks/` (`01`–`07`) with synthetic
   study CSVs in `notebooks/data/` (job training, encouragement IV, 8-variable
   panel).
 - Latent **hyperedges** in `CausalDiagram.bidirected` (pairs or larger tuples):
   each hyperedge is one exogenous source.
-- `classify_program` (THEORY §6): ancestral trim + footprint C1 + directed-cut
-  C2, then \(\sum\lambda\) → POINT / LINEAR / BILINEAR_* / POLYNOMIAL.
-  Records `wl_wr_cut`, `in_hypothesis_H`, post-cut `free_districts`.
+- `classify_program` (`THEORY_PROGRAM_DEGREE` §6): ancestral trim + footprint C1
+  + directed-cut C2, then \(\sum\lambda\) → POINT / LINEAR / BILINEAR_* /
+  POLYNOMIAL. Records `wl_wr_cut`, `in_hypothesis_H`, post-cut `free_districts`.
   Formulate/bound dispatch from that label (no classify↔solver split-brain).
 - Sharp nested-LP for bilinear: factor \(K=2\) (`gpp`) and latent c-degree 2
   (`gpp/latent`).
@@ -36,6 +38,8 @@ versioning follows [SemVer](https://semver.org/) (0.x API may evolve; see
 - Program-degree / GPP routing is AST-first: any `Query.from_expr` /
   `Query.conditional` (e.g. `P(Y_z, W_x | R)`), not only named factories.
   Multi-regime joints and observational evidence free the relevant blocks.
+- `CITATION.cff`, `CONTRIBUTING.md`, docs Tutorials page, optional
+  `[notebooks]` extra.
 
 ### Changed
 - Identification is **Shpitser–Pearl ID only** (g-formula / back-door /
@@ -45,12 +49,30 @@ versioning follows [SemVer](https://semver.org/) (0.x API may evolve; see
 - Docs overview refreshed for classify routing: `prefer_poly=False` by default
   (deg≥3 → outer; opt in with `prefer_poly=True`), `prefer_gpp` on `bound`,
   auto-routing flowchart, graphs / concepts / README / API index.
-- Single install: `pip install partialid` now includes pandas, HiGHS (`highspy`),
-  and CVXPY. Removed the `data` / `fast` / `convex` / `all` extras.
+- Single install includes pandas, HiGHS (`highspy`), and CVXPY. Removed the
+  `data` / `fast` / `convex` / `all` extras.
 - Removed `maximal_confounding`. Manski / order-only is
   `bidirected=[tuple(nodes)]` (also what `from_order` / `Assumptions.order` emit).
 - Pairwise bidirected chains (e.g. `X↔M`, `M↔Y`) are c-degree 2 (bilinear).
   Use `bidirected=[("X","M","Y")]` for one shared latent.
+- `Assumptions.independence`: always forces merged-latent outer (`tight=False`);
+  sharp product factorization remains unimplemented.
+- Unanchored `tan_msm(..., anchored=False)` raises at the factory (mirrors
+  Rosenbaum).
+- `BoundResult.tight=False` distinguishes `bounds_may_be_outer` vs
+  `bounds_may_be_inner` (uncertified GPP attainables).
+- Fractional LP results tag `method` as `lp/fractional` (not bare `lp`).
+- README install story prefers git/editable until PyPI publish; version `0.1.0a5`.
+- Sdist excludes `THEORY_PROGRAM_DEGREE.md` / `CLAUDE.md`; includes notebooks +
+  citation/contributing files.
+
+### Fixed
+- MkDocs `--strict` links (notebooks / source paths no longer leave the docs tree).
+- Docs cite `THEORY_PROGRAM_DEGREE` §6 (not `THEORY.md` Move 6) for
+  `classify_program`.
+- `graphs.md` distinguishes Manski full hyperedge from deg≥3 outer fallback.
+- GPP build failures no longer swallow arbitrary `Exception` into outer LP
+  (only `ValueError` / `NotImplementedError` / `RuntimeError`).
 
 ## [0.1.0a4] — 2026-07-27
 
@@ -83,7 +105,7 @@ versioning follows [SemVer](https://semver.org/) (0.x API may evolve; see
 - Core API: `Variables`, `Query`, `Assumptions`, `bound`, `bound_grid`, `bound_path`.
 - BSD-3-Clause license, packaging metadata, CI, and sdist inclusion policy.
 - Optional extras: `fast` (highspy), `convex` (cvxpy), `data` (pandas; helpers in Phase 2).
-  *(Superseded: these are core dependencies as of Unreleased.)*
+  *(Superseded: these are core dependencies as of 0.1.0a5.)*
 
 ### Notes
 - 0.x pre-release: public API may change before 0.1.0.

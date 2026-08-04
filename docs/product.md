@@ -29,11 +29,12 @@ they are not the only (or primary) product story.
 | `src/partialid/` | Installable library | yes | yes |
 | `tests/` | Pytest suite | no | yes |
 | `examples/` | Curated runnable examples | no | yes |
+| `notebooks/` | Tutorial vignettes + CSV data | no | yes |
 | `docs/` | User / product docs | no | yes |
 | `benchmarks/` | Scale / method experiments | no | **no** |
 | `latex/`, `papers/`, `Figures/` | Research collateral (local only) | no | **no** |
-| `README.md`, `LICENSE`, `CHANGELOG.md` | Package metadata | metadata | yes |
-| Research notes (`THEORY.md`, roadmaps, …) | Local working notes | no | **no** |
+| `README.md`, `LICENSE`, `CHANGELOG.md`, `CITATION.cff`, `CONTRIBUTING.md`, `SECURITY.md` | Package metadata | metadata | yes |
+| Research notes (`THEORY*.md`, roadmaps, …) | Local working notes | no | **no** |
 | `scripts/` | Maintainer utilities | no | **no** |
 
 Enforced for sdists via the repository `MANIFEST.in`. The wheel contains only
@@ -43,7 +44,8 @@ the `partialid` package (and metadata).
 
 1. Practitioner workflows: observational table → composed assumptions → bounds
    (optional sensitivity path)
-2. Trust: never silently return loose outer approximations
+2. Trust: never silently return outer or uncertified bounds as if sharp
+   (`tight` + note tags)
 3. Scale on discrete systems where structure (fiber, dual, prune) matters
 4. A small, documented public API on a SemVer 0.x train
 

@@ -34,8 +34,8 @@ Dry-run index. Private GitHub repos are fine; free Pages is unrelated.
 
 ```bash
 # version in pyproject.toml should match the tag
-git tag v0.1.0a4
-git push origin v0.1.0a4
+git tag v0.1.0a5
+git push origin v0.1.0a5
 ```
 
 Or Actions → **Publish to TestPyPI** → **Run workflow**.
@@ -46,7 +46,7 @@ Or Actions → **Publish to TestPyPI** → **Run workflow**.
 cd /tmp
 python -m venv /tmp/pid-test && source /tmp/pid-test/bin/activate
 pip install -U pip
-pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ partialid==0.1.0a4
+pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ partialid==0.1.0a5
 python -c "import partialid; print(partialid.__version__)"
 ```
 
@@ -74,13 +74,13 @@ Workflow: `.github/workflows/publish-pypi.yml`
    (optional: required reviewers for an extra safety gate).
 5. Push the workflow file to `main`, then Actions → **Publish to PyPI** →
    **Run workflow** on the branch/commit whose `pyproject.toml` version you
-   want (e.g. `0.1.0a4`).
+   want (e.g. `0.1.0a5`).
 6. Install:
 
 ```bash
 pip install partialid
 # or pin:
-pip install 'partialid==0.1.0a4'
+pip install 'partialid==0.1.0a5'
 ```
 
 Project page: https://pypi.org/project/partialid/

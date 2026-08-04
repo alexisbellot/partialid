@@ -160,7 +160,7 @@ def classify_program(
     variables: object | None = None,
     has_wl_wr_cut: bool = False,  # deprecated; cut is detected internally
 ) -> ProgramDegree:
-    """Classify by post-elimination ∑ free-block degrees (THEORY §6).
+    """Classify by post-elimination ∑ free-block degrees (THEORY_PROGRAM_DEGREE §6).
 
     Pass ``query=`` for any AST query. ``treatments`` + ``outcome`` remain
     supported for interventional classification. ``has_wl_wr_cut`` is ignored
@@ -214,7 +214,7 @@ def classify_program(
         notes=notes,
     )
 
-    # THEORY §6 step 9: if ID(Q) then F ← ∅ → POINT
+    # THEORY_PROGRAM_DEGREE §6 step 9: if ID(Q) then F ← ∅ → POINT
     # Skip Manski full-latent (never point-ID for do()) and counterfactuals.
     from .id_algorithm import is_identified
     from .identify import is_manski_full_latent

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "partialid"
-version = "0.1.0a4"
+version = "0.1.0a5"
 description = "Partial identification for discrete causal models by composing assumptions from the literature"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -27,6 +27,7 @@ keywords = [
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: BSD License",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
@@ -53,6 +54,10 @@ docs = [
   "mkdocstrings>=0.25",
   "mkdocstrings-python>=1.10",
 ]
+notebooks = [
+  "jupyter>=1.0",
+  "ipykernel>=6.0",
+]
 dev = [
   "pytest>=7.0",
   "ruff>=0.6",
@@ -65,6 +70,8 @@ dev = [
   "mkdocs-material>=9.5",
   "mkdocstrings>=0.25",
   "mkdocstrings-python>=1.10",
+  "jupyter>=1.0",
+  "ipykernel>=6.0",
 ]
 
 [project.urls]

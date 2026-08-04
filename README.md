@@ -10,7 +10,7 @@ structural causal models. The main idea is **assumption composition**: combine
 orders, diagrams, monotonicity, instruments, and sensitivity models with `&`,
 pass observational data, and get a sharp interval under those constraints.
 
-**Status:** `0.1.0a4` (alpha). API may change; see
+**Status:** `0.1.0a5` (alpha). API may change; see
 [stability contract](docs/stability.md).
 
 **Docs:** [https://alexisbellot.github.io/partialid/](https://alexisbellot.github.io/partialid/)
@@ -18,17 +18,24 @@ pass observational data, and get a sharp interval under those constraints.
 
 ## Install
 
-```bash
-pip install partialid
-```
-
 Requires Python ≥ 3.10. Dependencies: NumPy, SciPy, pandas, HiGHS (`highspy`),
 and CVXPY.
 
+Until the package is on PyPI, install from the repository:
+
 ```bash
-pip install -e ".[dev]"   # contributors
+pip install "git+https://github.com/alexisbellot/partialid.git"
+# or, from a clone:
+pip install -e .
+```
+
+```bash
+pip install -e ".[dev]"         # contributors (lint, tests, docs)
+pip install -e ".[notebooks]"   # Jupyter for tutorials under notebooks/
 pytest
 ```
+
+When published: `pip install partialid`.
 
 ## Quick start — compose assumptions
 
@@ -122,9 +129,11 @@ print(is_identified(g, ["X"], ["Y"]))  # False (pair chain)
 ## When bounds may be loose
 
 If the solver falls back to a merged-latent **outer** approximation
-(deg≥3 by default, size-gate failure, hard independence, …),
-`BoundResult.tight` is `False` and a `UserWarning` is emitted. Check `r.tight`
-in pipelines. Details: [stability](docs/stability.md),
+(deg≥3 by default, size-gate failure, hard independence, …) or returns
+uncertified GPP attainables (possibly inner), `BoundResult.tight` is `False`
+and a `UserWarning` is emitted. Check `r.tight` and `r.notes`
+(`bounds_may_be_outer` vs `bounds_may_be_inner`) in pipelines. Details:
+[stability](docs/stability.md),
 [solvers (advanced)](docs/advanced/solvers.md).
 
 Advanced solver flags (`dual`, `colgen`, `prefer_gpp`, `prefer_poly`, …) are

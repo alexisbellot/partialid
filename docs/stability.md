@@ -50,12 +50,15 @@ long-lived downstream APIs on them until 1.0 promotes them to core.
 | Signal | Meaning |
 |---|---|
 | `tight=True` (default) | Solver claims sharp bounds under the stated discrete LP/MIP/convex program for this assumption class. |
-| `tight=False` | Bounds are a **valid outer approximation** (contain the true identified set) but may be **loose**. Typical causes: degree ≥3 (default outer), GPP size-gate failure, hard independence, or other merged-latent fallback. |
+| `tight=False` + `bounds_may_be_outer` | Bounds are a **valid outer approximation** (contain the true identified set) but may be **loose**. Typical causes: degree ≥3 (default outer), GPP size-gate failure, hard `independence`, or other merged-latent fallback. |
+| `tight=False` + `bounds_may_be_inner` | Uncertified GPP / poly nested-LP **attainables**: may be slightly **inner** (not a certified outer). Emitted when the global Lip certificate is incomplete. |
 | `warnings` / `UserWarning` | Human-readable copy of the same issue (and related notes). Emitted when the result is returned. |
-| `notes` | Machine-oriented tags (e.g. `bounds_may_be_outer`). |
+| `notes` | Machine-oriented tags (`bounds_may_be_outer`, `bounds_may_be_inner`, …). |
 
-**Contract:** we do not silently return outer bounds as if they were sharp.
-Callers should check `result.tight` (or catch `UserWarning`) in automated pipelines.
+**Contract:** we do not silently return outer (or uncertified) bounds as if they
+were sharp. Callers should check `result.tight` and `result.notes` (or catch
+`UserWarning`) in automated pipelines. Do **not** treat every `tight=False` as
+a conservative outer — inspect the note tags.
 
 Numeric values are floating-point; compare with a tolerance appropriate to the
 LP solver (on the order of `1e-6`–`1e-8` for well-scaled binary problems).
@@ -64,5 +67,6 @@ LP solver (on the order of `1e-6`–`1e-8` for well-scaled binary problems).
 
 `bound(..., method="auto")` is the supported default. Explicit methods
 (`fiber`, `lp`, `dual`, `colgen`, `mip`, `convex`, `hyperarc`, `c_canonical`,
-`gpp`, `closed`) are power-user escape hatches; routing heuristics for `"auto"`
-may improve across 0.x without a major bump.
+`gpp`, `msm_agg`, `fractional`, `closed`) are power-user escape hatches; routing
+heuristics for `"auto"` may improve across 0.x without a major bump. Fractional
+programs tag results as `lp/fractional` when solved via the LP backend.

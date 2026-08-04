@@ -31,5 +31,5 @@ r = bound(V, P, Q, Assumptions.sensitivity_msm("X", "Y", Lambda=3.0))
 print(r.summary(Q))
 ```
 
-Also see the tutorial notebooks under [`notebooks/`](../../notebooks/)
+Also see the [tutorial notebooks](../tutorials.md)
 (especially `03_sensitivity_paths.ipynb`).

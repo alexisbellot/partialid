@@ -58,7 +58,7 @@ multilinear with `prefer_poly=True`. See [Concepts](concepts.md),
 
 ## Status
 
-Alpha (`0.1.0a4`). Public API may evolve on 0.x; see the
+Alpha (`0.1.0a5`). Public API may evolve on 0.x; see the
 [stability contract](stability.md).
 
 ## Further reading

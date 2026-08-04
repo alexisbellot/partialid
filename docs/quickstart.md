@@ -5,7 +5,10 @@ Install and bound an effect under composed literature assumptions.
 ## Install
 
 ```bash
-pip install partialid
+# From git until PyPI publish:
+pip install "git+https://github.com/alexisbellot/partialid.git"
+# or: pip install -e .   from a clone
+# when published: pip install partialid
 ```
 
 ## Minimal example
@@ -56,7 +59,7 @@ data = from_dataframe(pd.read_csv("table.csv"), columns=["X", "Y"])
 ```
 
 Runnable scripts: `examples/quickstart.py`, `examples/from_csv.py`.
-Showcase tutorials: see [`notebooks/README.md`](../notebooks/README.md)
+Showcase tutorials: see [Tutorials](tutorials.md)
 (start with `01_first_bounds.ipynb`).
 
 ## Next

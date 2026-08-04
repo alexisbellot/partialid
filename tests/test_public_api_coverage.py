@@ -84,6 +84,10 @@ def test_assumption_validation_errors():
         Assumptions.rosenbaum_gamma("X", 0.5)
     with pytest.raises(NotImplementedError):
         Assumptions.rosenbaum_gamma("X", 2.0, anchored=False)
+    with pytest.raises(NotImplementedError):
+        Assumptions.tan_msm("X", 2.0, anchored=False)
+    with pytest.raises(ValueError, match="at least two"):
+        Assumptions.independence(("X",))
     with pytest.raises(ValueError, match="kappa"):
         Assumptions.margin_budget(-1)
     with pytest.raises(ValueError, match="rho"):

@@ -122,7 +122,14 @@ class BoundResult:
             for w in self.warnings:
                 lines.append(f"  - {w}")
         elif not self.tight:
-            lines.append("note: tight=False (valid outer approximation; see docs/stability.md)")
+            if "bounds_may_be_inner" in self.notes:
+                lines.append(
+                    "note: tight=False (possibly inner / uncertified; see docs/stability.md)"
+                )
+            else:
+                lines.append(
+                    "note: tight=False (valid outer approximation; see docs/stability.md)"
+                )
         return "\n".join(lines)
 
     def __repr__(self) -> str:
@@ -144,13 +151,26 @@ def _with_tightness(
     *,
     tight: bool | None = None,
     outer: bool = False,
+    possibly_inner: bool = False,
     extra_warnings: Sequence[str] | None = None,
 ) -> BoundResult:
     warns = list(result.warnings)
     if extra_warnings:
         warns.extend(extra_warnings)
     is_tight = result.tight if tight is None else tight
-    if outer:
+    notes = list(result.notes)
+    if possibly_inner:
+        # Uncertified GPP attainables: do NOT claim a valid outer.
+        is_tight = False
+        msg = (
+            "Returned bounds may be slightly inner: GPP nested-LP attainables "
+            "without a complete global certificate (not a certified outer)."
+        )
+        if msg not in warns:
+            warns.append(msg)
+        if "bounds_may_be_inner" not in notes:
+            notes.append("bounds_may_be_inner")
+    elif outer:
         is_tight = False
         msg = (
             "Returned bounds may not be tight: multi c-component / merged-latent "
@@ -159,10 +179,11 @@ def _with_tightness(
         )
         if msg not in warns:
             warns.append(msg)
-        if "bounds_may_be_outer" not in result.notes:
-            result.notes = list(result.notes) + ["bounds_may_be_outer"]
+        if "bounds_may_be_outer" not in notes:
+            notes.append("bounds_may_be_outer")
     result.tight = is_tight
     result.warnings = warns
+    result.notes = notes
     return _emit_bound_warnings(result)
 
 
@@ -526,6 +547,7 @@ def bound(
                 ),
                 outer=True,
             )
+        certified = bool(gb.certified and gb.success)
         return _with_tightness(
             BoundResult(
                 lower=gb.lower,
@@ -537,18 +559,11 @@ def bound(
                 formulate_time=t1 - t0,
                 solve_time=t2 - t1,
                 notes=list(lp.notes) + list(gb.notes),
-                tight=bool(gb.certified and gb.success),
+                tight=certified,
             ),
-            tight=bool(gb.certified and gb.success),
+            tight=certified,
             outer=False,
-            extra_warnings=(
-                None
-                if gb.certified
-                else [
-                    "GPP spatial BB: attainable nested-LP bounds; "
-                    "global certificate incomplete for this block size."
-                ]
-            ),
+            possibly_inner=bool(gb.success and not certified),
         )
 
     if use == "fiber":
@@ -660,7 +675,13 @@ def bound(
         notes.append("auto_routed_dual")
     if method == "dual":
         notes.append("force_dual")
-    method_tag = "lp/dual" if used_dual else "lp"
+    fractional = use == "fractional" or getattr(lp, "c_den", None) is not None
+    if fractional:
+        method_tag = "lp/fractional/dual" if used_dual else "lp/fractional"
+        if "fractional_lp" not in notes:
+            notes.append("fractional_lp")
+    else:
+        method_tag = "lp/dual" if used_dual else "lp"
     return _finish(
         BoundResult(
             lower=lo,
@@ -707,6 +728,12 @@ def bound_grid(
     from .sensitivity_grid import SensitivityTemplate
 
     if method not in ("auto", "lp"):
+        py_warnings.warn(
+            f"bound_grid coerces method={method!r} to 'lp' "
+            "(grid sweep uses the LP / HiGHS template path).",
+            UserWarning,
+            stacklevel=2,
+        )
         method = "lp"
     if param not in ("Lambda", "Gamma", "c", "kappa"):
         raise ValueError(f"unknown param {param!r}")

@@ -463,14 +463,25 @@ def formulate(
     diagram = _apply_exclusions(diagram, assumptions)
 
     # Inert prune first; WL–WR / instrument LP comes from post-cut classify below
-    # (single cut authority — THEORY §6 C2).
+    # (single cut authority — THEORY_PROGRAM_DEGREE §6 C2).
     if optimize:
         variables, data, diagram = _inert_prune_order_only(
             variables, data, query, diagram, notes
         )
 
     outer = False
-    # Program-degree router: dispatch solely from post-cut classify (THEORY §6).
+    # Hard independence: v1 does not factorize the product program. Force a
+    # merged-latent outer so we never claim sharp bounds under an unimplemented atom.
+    if assumptions.of_type(IndependenceAssumption):
+        notes.append(
+            "independence atom: hard c-split not fully factorized; "
+            "using merged-latent outer LP (valid outer approximation)."
+        )
+        outer = True
+        diagram = _merged_latent_diagram(diagram)
+
+    # Program-degree router: dispatch solely from post-cut classify
+    # (THEORY_PROGRAM_DEGREE §6).
     if optimize and query.expr is not None:
         from .degree1 import analyze_degree1, induced_subgraph
         from .program_degree import ProgramKind, classify_program
@@ -735,7 +746,7 @@ def formulate(
                     variables, data, query, diagram, frozenset(D), notes=notes
                 )
                 return _gpp_stub(gpp, hint="gpp/latent")
-            except Exception as exc:
+            except (ValueError, NotImplementedError, RuntimeError) as exc:
                 _merged_outer(
                     f"latent bilinear unavailable ({exc}); "
                     "using merged-latent outer LP (valid, may be conservative)."
@@ -781,7 +792,7 @@ def formulate(
                         "(Tian–Pearl PN/PS linearization)"
                     ]
                 return _gpp_stub(gpp, hint="gpp")
-            except Exception as exc:
+            except (ValueError, NotImplementedError, RuntimeError) as exc:
                 _merged_outer(
                     f"bilinear/factor GPP unavailable ({exc}); "
                     "using merged-latent outer LP (valid, may be conservative)."
@@ -823,7 +834,7 @@ def formulate(
                         f"poly solver: unsupported shape K={len(free)} "
                         f"c_degrees={prog.c_degrees} (latent λ≥3 not size-gated)"
                     )
-                except Exception as exc:
+                except (ValueError, NotImplementedError, RuntimeError) as exc:
                     notes.append(
                         f"poly GPP unavailable ({exc}); "
                         "explicit outer fallback (tight=False)."
@@ -875,19 +886,6 @@ def formulate(
 
     c, c_den, obj_notes = _build_objective(ts, query, allow, cells=cells, P_vec=P)
     notes.extend(obj_notes)
-
-    if assumptions.of_type(IndependenceAssumption):
-        if outer:
-            notes.append(
-                "independence atom present: merged-latent path is a certified "
-                "outer unless ID/WL–WR already applied (hard split not fully "
-                "factorized in v1)"
-            )
-        else:
-            notes.append(
-                "independence atom noted; tight factorization only when ID/WL–WR "
-                "reduces the problem"
-            )
 
     # Equality: A q = P over allowed types only (forbidden stay at 0 via bounds)
     n = ts.n_types

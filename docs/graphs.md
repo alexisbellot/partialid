@@ -52,7 +52,8 @@ assert is_identified(g, ["X"], ["Y"])  # classic front-door
 
 ## Program degree (which solver?)
 
-`classify_program` implements THEORY §6 under hypothesis (H): ancestral trim,
+`classify_program` implements **program-degree theory**
+(`THEORY_PROGRAM_DEGREE` §6) under hypothesis (H): ancestral trim,
 footprint free blocks (C1), directed-cut C2 (WL–WR), then **ID** (empty free
 set → `POINT`), else \(\mathrm{degree}=\sum\lambda\) over surviving free
 districts.
@@ -108,8 +109,9 @@ classify_program(diagram, query=Q)  # degree from multi-regime + evidence
 ```
 
 `ProgramDegree` also records `wl_wr_cut`, `in_hypothesis_H`, and
-`pre_cut_free_districts`. Worked examples live in the docstring of
-[`program_degree.py`](../src/partialid/program_degree.py).
+`pre_cut_free_districts`. Worked latent expansions live in the module docstring of
+[`program_degree.py`](https://github.com/alexisbellot/partialid/blob/main/src/partialid/program_degree.py)
+(and in [`classify_program`](api/index.md) in the API reference).
 
 ## Instrumental variables
 
@@ -135,10 +137,15 @@ See [IV recipe](recipes/iv.md) for a complete runnable example.
 
 ## Tightness on diagrams
 
-Degree ≥3 defaults to a merged-latent **outer** LP
-(`bidirected=[tuple(nodes)]`, `tight=False`). Bilinear size-gate failures and
-hard independence splits can also outer. Always check `r.tight` in automated
-pipelines.
+Degree ≥3 defaults to a merged-latent **outer** LP (`tight=False`). That
+fallback is built by `_merged_latent_diagram` (one latent over the surviving
+ancestral nodes) — **not** the same object as intentional Manski order-only
+setup, which uses `bidirected=[tuple(nodes)]` / `Assumptions.order` from the
+start and remains a sharp degree‑1 LP.
+
+Bilinear size-gate failures and hard `independence` also force outer. Uncertified
+GPP attainables set `tight=False` with a **possibly-inner** warning (not a
+certified outer). Always check `r.tight` (and `r.notes`) in automated pipelines.
 
 ## Next
 

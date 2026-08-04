@@ -5,18 +5,17 @@ the accompanying theory / paper when applicable.
 
 ## Software
 
+GitHub / Zenodo citation metadata: [`CITATION.cff`](https://github.com/alexisbellot/partialid/blob/main/CITATION.cff).
+
 ```bibtex
 @software{partialid,
   title        = {partialid: Partial identification by composing assumptions for discrete causal models},
   author       = {Bellot, Alexis},
   year         = {2026},
   url          = {https://github.com/alexisbellot/partialid},
-  version      = {0.1.0a4}
+  version      = {0.1.0a5}
 }
 ```
-
-A `CITATION.cff` file will be added for Zenodo / GitHub citation as part of the
-release train.
 
 ## Methods
 

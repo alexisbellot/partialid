@@ -6,6 +6,8 @@ include MANIFEST.in
 include README.md
 include LICENSE
 include CHANGELOG.md
+include CITATION.cff
+include SECURITY.md
 include .pre-commit-config.yaml
 
 graft src/partialid
@@ -27,6 +29,8 @@ exclude README_PI_SOLVER.md
 exclude FOUNDATIONS.md
 exclude LP_ASSUMPTIONS_101.md
 exclude THEORY.md
+exclude THEORY_PROGRAM_DEGREE.md
+exclude CLAUDE.md
 exclude SOLVERS.md
 global-exclude ROADMAP_*.md
 global-exclude IDEAS.md

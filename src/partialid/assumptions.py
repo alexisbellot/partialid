@@ -144,7 +144,12 @@ class SupportBoundAssumption:
 
 @dataclass(frozen=True)
 class IndependenceAssumption:
-    """Hard independence / c-split (marks polynomial regime; LP uses merged outer)."""
+    """Hard independence / c-split between groups.
+
+    Sharp factorization of the product program is not implemented in v1: formulate
+    forces a merged-latent **outer** LP (``tight=False``). Prefer ID / diagram
+    structure that already separates c-components when you need sharp bounds.
+    """
 
     groups: tuple[tuple[str, ...], ...]
 
@@ -292,8 +297,13 @@ class Assumptions:
         """Relative-propensity LR MSM (classical Tan odds when treatment is binary)."""
         if Lambda < 1:
             raise ValueError("Tan MSM requires Lambda >= 1")
+        if not anchored:
+            raise NotImplementedError(
+                "Unanchored Tan MSM is bilinear (not LP). "
+                "Use anchored=True or a future NLP path."
+            )
         return AssumptionSet(
-            (TanMSMAssumption(treatment=treatment, Lambda=float(Lambda), anchored=anchored),)
+            (TanMSMAssumption(treatment=treatment, Lambda=float(Lambda), anchored=True),)
         )
 
     @staticmethod
@@ -356,7 +366,13 @@ class Assumptions:
 
     @staticmethod
     def independence(*groups: Sequence[str]) -> AssumptionSet:
-        """Hard c-split / independence between groups of variables."""
+        """Hard c-split / independence between groups of variables.
+
+        v1 returns a certified **outer** approximation (``tight=False``); the
+        sharp product factorization is not solved.
+        """
+        if len(groups) < 2:
+            raise ValueError("independence requires at least two groups")
         return AssumptionSet((IndependenceAssumption(groups=tuple(tuple(g) for g in groups)),))
 
     # ------------------------------------------------------------------

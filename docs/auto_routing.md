@@ -31,7 +31,7 @@ assumptions + query + data
         fiber → dual LP → colgen → primal HiGHS
 ```
 
-`classify_program` follows THEORY §6: ancestral trim, footprint C1, directed-cut
+`classify_program` follows program-degree theory (`THEORY_PROGRAM_DEGREE` §6): ancestral trim, footprint C1, directed-cut
 C2, then ID (→ `POINT`) or \(\sum\lambda\). See
 [Graphs](graphs.md#program-degree-which-solver). Use `is_identified` /
 `identify_query` to test identification without an LP.
@@ -60,7 +60,9 @@ Pass them on `bound(...)` or `formulate(...)`.
 
 1. Call `bound(...)` or `bound_path(...)` with recipes / composed assumptions.
 2. Read `BoundResult.method` and `notes` if you care which engine ran.
-3. Check `tight` — outer approximations set `tight=False` and emit `UserWarning`.
+3. Check `tight` — outer approximations and uncertified GPP attainables set
+   `tight=False` and emit `UserWarning`. Inspect `notes` for
+   `bounds_may_be_outer` vs `bounds_may_be_inner`.
 
 ## Scale snapshot
 

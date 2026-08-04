@@ -11,7 +11,7 @@ state assumptions → call `bound` → interpret the interval in plain language.
 From the repository root:
 
 ```bash
-pip install -e .
+pip install -e ".[notebooks]"
 jupyter notebook notebooks/01_first_bounds.ipynb
 ```
 

@@ -75,20 +75,22 @@ Shpitser–Pearl ID first (`is_identified` / `identify_query`); otherwise it
 routes by `classify_program` (which also marks ID success as `POINT`, else
 LP / bilinear GPP / outer for deg≥3). See [Graphs](graphs.md).
 
-## Tight vs outer
+## Tight vs outer (and uncertified)
 
 | Signal | Meaning |
 |---|---|
 | `tight=True` | Sharp bounds under the stated discrete program |
-| `tight=False` | Valid **outer** approximation (may be loose) |
+| `tight=False` + `bounds_may_be_outer` | Valid **outer** approximation (may be loose) |
+| `tight=False` + `bounds_may_be_inner` | Uncertified GPP attainables (may be slightly **inner**) |
 | `UserWarning` | Same issue, human-readable |
 
 Common causes of `tight=False`:
 
 - degree ≥3 (polynomial) — **default** outer; opt in with `prefer_poly=True`
 - bilinear GPP size-gate failure (`prefer_gpp=False` also forces outer)
-- hard `independence` c-split (factorization incomplete)
+- hard `independence` c-split (always outer in v1)
 - multi c-component / merged-latent fallback
+- uncertified GPP / `gpp/poly` (possibly inner — see notes)
 
 See [Stability](stability.md) and [Auto routing](auto_routing.md).
 
