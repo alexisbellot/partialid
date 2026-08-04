@@ -37,6 +37,7 @@ scripts/polish_theory_tex.py
 *.swo
 *~
 .vscode/
+.cursor/
 
 # Python
 __pycache__/

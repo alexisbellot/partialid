@@ -58,7 +58,6 @@ from partialid import from_dataframe
 data = from_dataframe(pd.read_csv("table.csv"), columns=["X", "Y"])
 ```
 
-Runnable scripts: `examples/quickstart.py`, `examples/from_csv.py`.
 Showcase tutorials: see [Tutorials](tutorials.md)
 (start with `01_first_bounds.ipynb`).
 

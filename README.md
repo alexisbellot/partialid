@@ -89,8 +89,9 @@ data = from_counts(("X", "Y"), {(0, 0): 30, (0, 1): 20, (1, 0): 15, (1, 1): 35})
 r = bound(data.variables, data.P, Q, Assumptions.manski("X", "Y"))
 ```
 
-See `examples/quickstart.py`, `examples/from_csv.py`, and the showcase
-notebooks under [`notebooks/`](notebooks/) (see [`notebooks/README.md`](notebooks/README.md)).
+See the showcase notebooks under [`notebooks/`](notebooks/)
+(start at [`01_first_bounds`](notebooks/01_first_bounds.ipynb);
+[`notebooks/README.md`](notebooks/README.md)).
 
 ## Assumptions (catalog)
 
@@ -153,7 +154,6 @@ Full site (MkDocs): [partialid documentation](https://alexisbellot.github.io/par
 | [Recipes](docs/recipes/manski.md) | Copy-paste jobs |
 | [API](docs/api/index.md) | Public symbols |
 | [Solvers](docs/advanced/solvers.md) | Advanced methods / routing |
-| [examples/](examples/) | Runnable scripts |
 | [notebooks/](notebooks/) | Numbered tutorial notebooks (start at `01_first_bounds`) |
 
 Build locally: `pip install -e ".[docs]" && mkdocs serve`

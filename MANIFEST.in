@@ -12,7 +12,6 @@ include .pre-commit-config.yaml
 
 graft src/partialid
 graft tests
-graft examples
 graft docs
 graft notebooks
 

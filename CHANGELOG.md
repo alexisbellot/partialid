@@ -8,6 +8,10 @@ versioning follows [SemVer](https://semver.org/) (0.x API may evolve; see
 
 ## [Unreleased]
 
+### Changed
+- Removed `examples/`; tutorials under `notebooks/` are the canonical runnable
+  examples (executed in CI via `tests/test_docs_recipes.py`).
+
 ### Fixed
 - Measurement-error / latent-endogenous graphs: keep observed proxies in the
   ancestral set, skip spurious ID→POINT when the outcome is latent, and
@@ -38,8 +42,7 @@ versioning follows [SemVer](https://semver.org/) (0.x API may evolve; see
 - Program-degree / GPP routing is AST-first: any `Query.from_expr` /
   `Query.conditional` (e.g. `P(Y_z, W_x | R)`), not only named factories.
   Multi-regime joints and observational evidence free the relevant blocks.
-- `CITATION.cff`, `CONTRIBUTING.md`, docs Tutorials page, optional
-  `[notebooks]` extra.
+- `CITATION.cff`, docs Tutorials page, optional `[notebooks]` extra.
 
 ### Changed
 - Identification is **Shpitser–Pearl ID only** (g-formula / back-door /
@@ -64,7 +67,7 @@ versioning follows [SemVer](https://semver.org/) (0.x API may evolve; see
 - Fractional LP results tag `method` as `lp/fractional` (not bare `lp`).
 - README install story prefers git/editable until PyPI publish; version `0.1.0a5`.
 - Sdist excludes `THEORY_PROGRAM_DEGREE.md` / `CLAUDE.md`; includes notebooks +
-  citation/contributing files.
+  citation / security metadata.
 
 ### Fixed
 - MkDocs `--strict` links (notebooks / source paths no longer leave the docs tree).

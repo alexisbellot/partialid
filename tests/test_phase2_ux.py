@@ -90,12 +90,19 @@ def test_sensitivity_path_one_liner():
     assert "sensitivity path" in path.summary(at=3.0)
 
 
-def test_example_csv_bundle():
-    csv = Path(__file__).resolve().parents[1] / "examples" / "data" / "xy_counts.csv"
-    lines = csv.read_text().strip().splitlines()
-    header = lines[0].split(",")
-    rows = [tuple(int(x) for x in line.split(",")) for line in lines[1:]]
-    data = from_records(header, rows)
-    Q = Query.interventional(outcome="Y", do={"X": 1}, value=1)
-    r = bound(data.variables, data.P, Q, Assumptions.manski("X", "Y"))
+def test_notebook_csv_bundle():
+    csv = Path(__file__).resolve().parents[1] / "notebooks" / "data" / "job_training.csv"
+    assert csv.is_file()
+    import pandas as pd
+
+    from partialid import from_dataframe
+
+    data = from_dataframe(pd.read_csv(csv), columns=["treated", "employed"])
+    Q = Query.interventional(outcome="employed", do={"treated": 1}, value=1)
+    r = bound(
+        data.variables,
+        data.P,
+        Q,
+        Assumptions.order("treated", "employed"),
+    )
     assert r.success and r.width > 0

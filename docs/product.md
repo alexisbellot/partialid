@@ -28,12 +28,11 @@ they are not the only (or primary) product story.
 |---|---|---|---|
 | `src/partialid/` | Installable library | yes | yes |
 | `tests/` | Pytest suite | no | yes |
-| `examples/` | Curated runnable examples | no | yes |
-| `notebooks/` | Tutorial vignettes + CSV data | no | yes |
+| `notebooks/` | Tutorial vignettes + CSV data (canonical examples) | no | yes |
 | `docs/` | User / product docs | no | yes |
 | `benchmarks/` | Scale / method experiments | no | **no** |
 | `latex/`, `papers/`, `Figures/` | Research collateral (local only) | no | **no** |
-| `README.md`, `LICENSE`, `CHANGELOG.md`, `CITATION.cff`, `CONTRIBUTING.md`, `SECURITY.md` | Package metadata | metadata | yes |
+| `README.md`, `LICENSE`, `CHANGELOG.md`, `CITATION.cff`, `SECURITY.md` | Package metadata | metadata | yes |
 | Research notes (`THEORY*.md`, roadmaps, …) | Local working notes | no | **no** |
 | `scripts/` | Maintainer utilities | no | **no** |
 

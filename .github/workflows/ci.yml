@@ -53,10 +53,6 @@ jobs:
         run: |
           coverage run -m pytest -m "not slow" --tb=short
           coverage report
-      - name: Examples
-        run: |
-          python examples/quickstart.py
-          python examples/from_csv.py
 
   extras:
     name: dependency smoke
