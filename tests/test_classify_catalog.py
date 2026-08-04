@@ -8,7 +8,7 @@ import pytest
 from partialid import Assumptions, CausalDiagram, Query, Variables, bound
 from partialid.formulate import formulate
 from partialid.program_degree import ProgramKind, classify_program
-from partialid.query_ast import Atom, LinComb, Lit, PO
+from partialid.query_ast import PO, Atom, LinComb, Lit
 
 
 def _softmax_P(V: Variables, seed: int = 1) -> dict:
@@ -39,9 +39,7 @@ def _free_sorted(prog) -> list[list[str]]:
 
 
 def g_bow():
-    return CausalDiagram.from_edges(
-        ["X", "Y"], directed=[("X", "Y")], bidirected=[("X", "Y")]
-    )
+    return CausalDiagram.from_edges(["X", "Y"], directed=[("X", "Y")], bidirected=[("X", "Y")])
 
 
 def g_order_xy():
@@ -89,9 +87,7 @@ def g_triple_hyperedge():
 
 
 def g_markov():
-    return CausalDiagram.from_edges(
-        ["X", "Y"], directed=[("X", "Y")], bidirected=[]
-    )
+    return CausalDiagram.from_edges(["X", "Y"], directed=[("X", "Y")], bidirected=[])
 
 
 def g_pair_chain():
@@ -147,6 +143,7 @@ def g_k3_factor():
 # ---------------------------------------------------------------------------
 # L*: LP / POINT
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize(
     "case_id,graph,query,kind,degree,free,cut,in_H",
@@ -296,6 +293,7 @@ def test_catalog_L10_faces_do_not_change_kind():
 # B*: bilinear
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize(
     "case_id,graph,query,kind,degree,free",
     [
@@ -352,6 +350,7 @@ def test_catalog_B4_cut_fails_not_linear():
 # P*: polynomial / out of (H)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize(
     "case_id,graph,query,degree,in_H",
     [
@@ -386,6 +385,7 @@ def test_catalog_P2_three_factor_districts():
 # Q*: query-sensitivity
 # ---------------------------------------------------------------------------
 
+
 def test_catalog_Q1_mediated_query_flip():
     g = g_mediated()
     assert classify_program(g, query=_Q_do()).kind == ProgramKind.LINEAR
@@ -394,8 +394,7 @@ def test_catalog_Q1_mediated_query_flip():
         == ProgramKind.BILINEAR_FACTOR
     )
     assert (
-        classify_program(g, query=Query.ate(outcome="Y", treatment="X")).kind
-        == ProgramKind.LINEAR
+        classify_program(g, query=Query.ate(outcome="Y", treatment="X")).kind == ProgramKind.LINEAR
     )
 
 
@@ -403,8 +402,7 @@ def test_catalog_Q2_iv_pn_stays_linear():
     g = g_iv()
     assert classify_program(g, query=_Q_do()).kind == ProgramKind.LINEAR
     assert (
-        classify_program(g, query=Query.pn(treatment="X", outcome="Y")).kind
-        == ProgramKind.LINEAR
+        classify_program(g, query=Query.pn(treatment="X", outcome="Y")).kind == ProgramKind.LINEAR
     )
 
 
@@ -429,6 +427,7 @@ def test_catalog_Q3_multi_regime_footprint():
 # ---------------------------------------------------------------------------
 # Classify ↔ formulate / bound agreement
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize(
     "case_id,graph,query,expect_hint",
@@ -513,9 +512,7 @@ def test_catalog_P2_poly_path_opt_in():
     assert lp_default.outer_approximation
     assert lp_default.method_hint != "gpp/poly"
     # Opt-in: build tensors under a dummy P, then replace with a realizable law
-    lp0 = formulate(
-        V, _uniform_P(V), Q, Assumptions.from_diagram(g), prefer_poly=True
-    )
+    lp0 = formulate(V, _uniform_P(V), Q, Assumptions.from_diagram(g), prefer_poly=True)
     assert lp0.method_hint == "gpp/poly"
     poly = lp0.gpp
     rng = np.random.default_rng(0)
@@ -538,9 +535,7 @@ def test_catalog_P4_prefer_poly_latent_falls_back_outer():
     V = Variables.from_binary(*g.topological_order())
     P = _softmax_P(V, seed=1)
     Q = _Q_do()
-    lp = formulate(
-        V, P, Q, Assumptions.from_diagram(g), prefer_poly=True, prefer_gpp=True
-    )
+    lp = formulate(V, P, Q, Assumptions.from_diagram(g), prefer_poly=True, prefer_gpp=True)
     assert lp.outer_approximation
     assert any("poly" in n.lower() or "outer" in n.lower() for n in lp.notes)
     r = bound(V, P, Q, Assumptions.from_diagram(g), prefer_poly=True)

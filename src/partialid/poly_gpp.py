@@ -88,8 +88,7 @@ def build_poly_factor_gpp(
     if covered != set(diagram.nodes):
         missing = set(diagram.nodes) - covered
         raise ValueError(
-            "poly GPP expects every ancestral node in a free district; "
-            f"missing {sorted(missing)}"
+            f"poly GPP expects every ancestral node in a free district; missing {sorted(missing)}"
         )
 
     order = diagram.topological_order()
@@ -163,8 +162,7 @@ def build_poly_factor_gpp(
 
     note_list = list(notes or [])
     note_list.append(
-        f"poly factor GPP K=3 blocks {[sorted(d) for d in free]} "
-        f"types=({n1},{n2},{n3})"
+        f"poly factor GPP K=3 blocks {[sorted(d) for d in free]} types=({n1},{n2},{n3})"
     )
     return PolyGPPData(
         variables=variables,
@@ -397,10 +395,7 @@ def solve_bounds_poly(poly: PolyGPPData) -> GPPBounds:
             notes=notes,
             certified=False,
         )
-    notes.append(
-        f"poly nested GPP over n3={poly.n3}; "
-        f"bounds=[{best_lo:.6g}, {best_hi:.6g}]"
-    )
+    notes.append(f"poly nested GPP over n3={poly.n3}; bounds=[{best_lo:.6g}, {best_hi:.6g}]")
     return GPPBounds(
         lower=float(best_lo),
         upper=float(best_hi),

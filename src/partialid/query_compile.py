@@ -18,8 +18,8 @@ Preprocessing pipeline (each step is cited):
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
 from typing import Sequence
 
 import numpy as np

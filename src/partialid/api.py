@@ -127,9 +127,7 @@ class BoundResult:
                     "note: tight=False (possibly inner / uncertified; see docs/stability.md)"
                 )
             else:
-                lines.append(
-                    "note: tight=False (valid outer approximation; see docs/stability.md)"
-                )
+                lines.append("note: tight=False (valid outer approximation; see docs/stability.md)")
         return "\n".join(lines)
 
     def __repr__(self) -> str:
@@ -300,9 +298,14 @@ def bound(
             )
 
     # ID reduction for explicit diagrams (before LP), when not forcing a special solver
-    if optimize and method in ("auto", "fiber", "lp") and query.kind in (
-        "interventional",
-        "ate",
+    if (
+        optimize
+        and method in ("auto", "fiber", "lp")
+        and query.kind
+        in (
+            "interventional",
+            "ate",
+        )
     ):
         t_id0 = perf_counter()
         idr = try_identify(variables, data, query, assumptions)
@@ -310,9 +313,7 @@ def bound(
         if idr.identified and idr.value is not None:
             # criterion is already "id" or "id/ate"
             method_tag = (
-                idr.criterion
-                if idr.criterion.startswith("id")
-                else f"id/{idr.criterion or 'id'}"
+                idr.criterion if idr.criterion.startswith("id") else f"id/{idr.criterion or 'id'}"
             )
             return _tag_notes(
                 _with_tightness(

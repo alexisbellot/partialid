@@ -72,11 +72,7 @@ def has_explicit_diagram(assumptions: AssumptionSet) -> bool:
 
 def is_manski_full_latent(g: CausalDiagram) -> bool:
     """True when one latent hyperedge covers every node (order-only Manski)."""
-    return (
-        len(g.nodes) > 1
-        and len(g.bidirected) == 1
-        and set(g.bidirected[0]) == set(g.nodes)
-    )
+    return len(g.nodes) > 1 and len(g.bidirected) == 1 and set(g.bidirected[0]) == set(g.nodes)
 
 
 def relevant_c_components(
@@ -224,9 +220,7 @@ def try_identify(
     if not treatments:
         return IDResult(identified=False, notes=["ID: empty intervention"], attempted=True)
 
-    rel = relevant_c_components(
-        g, treatments=list(treatments.keys()), outcome=query.outcome
-    )
+    rel = relevant_c_components(g, treatments=list(treatments.keys()), outcome=query.outcome)
     notes.append(f"C*={[sorted(c) for c in rel]}")
 
     val = _eval_interventional(

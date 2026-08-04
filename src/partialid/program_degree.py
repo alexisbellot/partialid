@@ -136,15 +136,11 @@ def _apply_directed_cuts(
             if recorded is None:
                 recorded = (wl, wr)
                 notes.append(
-                    f"C2 directed cut WL={list(wl)} WR={list(wr)} "
-                    "(no free I-side district to drop)"
+                    f"C2 directed cut WL={list(wl)} WR={list(wr)} (no free I-side district to drop)"
                 )
             break
         for d in drop:
-            notes.append(
-                f"C2 drop free district {sorted(d)} via cut "
-                f"WL={list(wl)} WR={list(wr)}"
-            )
+            notes.append(f"C2 drop free district {sorted(d)} via cut WL={list(wl)} WR={list(wr)}")
         free = [d for d in free if d not in drop]
         recorded = (wl, wr)
         # Continue: another cut may apply on remaining structure
@@ -177,9 +173,7 @@ def classify_program(
             variables=variables,
         )
         treatments = (
-            list(treatments)
-            if treatments is not None
-            else sorted(query.intervention.keys())
+            list(treatments) if treatments is not None else sorted(query.intervention.keys())
         )
         if query.kind == "ate":
             treatments = [str((query.meta or {}).get("treatment", "X"))]
@@ -235,8 +229,7 @@ def classify_program(
             if not need <= set(obs):
                 id_eligible = False
                 notes.append(
-                    "skip ID→POINT: query vars "
-                    f"{sorted(need - set(obs))} are latent endogenous"
+                    f"skip ID→POINT: query vars {sorted(need - set(obs))} are latent endogenous"
                 )
     if id_eligible and is_identified(g_an, list(treatments), [outcome]):
         return ProgramDegree(
@@ -277,9 +270,7 @@ def classify_program(
             degree=1,
             free_districts=free,
             c_degrees=degrees,
-            notes=tuple(
-                notes + [f"program: {tag} (∑ free-block degrees={degree}, K={k})"]
-            ),
+            notes=tuple(notes + [f"program: {tag} (∑ free-block degrees={degree}, K={k})"]),
             wl_wr_cut=cut,
             in_hypothesis_H=in_H,
             pre_cut_free_districts=pre_cut,
@@ -313,10 +304,7 @@ def classify_program(
         c_degrees=degrees,
         notes=tuple(
             notes
-            + [
-                f"program: polynomial degree {degree} "
-                f"(∑ free-block degrees, K={k}, d={degrees})"
-            ]
+            + [f"program: polynomial degree {degree} (∑ free-block degrees, K={k}, d={degrees})"]
         ),
         wl_wr_cut=cut,
         in_hypothesis_H=False,

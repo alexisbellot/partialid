@@ -299,8 +299,7 @@ class Assumptions:
             raise ValueError("Tan MSM requires Lambda >= 1")
         if not anchored:
             raise NotImplementedError(
-                "Unanchored Tan MSM is bilinear (not LP). "
-                "Use anchored=True or a future NLP path."
+                "Unanchored Tan MSM is bilinear (not LP). Use anchored=True or a future NLP path."
             )
         return AssumptionSet(
             (TanMSMAssumption(treatment=treatment, Lambda=float(Lambda), anchored=True),)

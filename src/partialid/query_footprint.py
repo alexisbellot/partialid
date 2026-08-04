@@ -30,7 +30,7 @@ from typing import Iterable
 
 from .graph import CausalDiagram
 from .query import Query
-from .query_ast import Atom, Cond, Expr, LinComb, PO
+from .query_ast import PO, Atom, Cond, Expr, LinComb
 from .variables import Variables
 
 _NAMED_KINDS = frozenset({"interventional", "ate", "pns", "pn", "ps"})
@@ -174,9 +174,7 @@ def extract_footprint(
     if query.expr is None:
         raise ValueError("query.expr is required")
 
-    fp = extract_footprint_from_expr(
-        query.expr, variables=variables, diagram=diagram
-    )
+    fp = extract_footprint_from_expr(query.expr, variables=variables, diagram=diagram)
     all_vars = set(fp.all_vars)
     intervention_vars = set(fp.intervention_vars)
     notes = list(fp.notes)

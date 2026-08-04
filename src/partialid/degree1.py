@@ -89,9 +89,7 @@ def analyze_degree1(
         notes.extend(list(fp.notes))
         seeds = set(fp.all_vars)
         cross_world = set(fp.cross_world_vars)
-        treatments = (
-            list(treatments) if treatments is not None else sorted(fp.intervention_vars)
-        )
+        treatments = list(treatments) if treatments is not None else sorted(fp.intervention_vars)
         seeds |= set(treatments)
     else:
         if treatments is None or outcome is None:
@@ -120,9 +118,7 @@ def analyze_degree1(
     g_an = induced_subgraph(g, ancestral)
     districts = tuple(g_an.c_components())
     notes.append(f"districts={[sorted(d) for d in districts]}")
-    notes.append(
-        "c_degrees=" + str({tuple(sorted(d)): g_an.c_degree(d) for d in districts})
-    )
+    notes.append("c_degrees=" + str({tuple(sorted(d)): g_an.c_degree(d) for d in districts}))
 
     free_list: list[frozenset[str]] = []
     for d in districts:
@@ -137,13 +133,11 @@ def analyze_degree1(
     # LP reduction only when every free block has c-degree ≤1 (cross-world
     # unconfounded singletons count as degree 1) and K≤1.
     free_cdeg_ok = all(
-        (not district_has_confounding(g_an, d)) or c_degree_upper_bound(g_an, d) <= 1
-        for d in free
+        (not district_has_confounding(g_an, d)) or c_degree_upper_bound(g_an, d) <= 1 for d in free
     )
     if not free_cdeg_ok or not all_districts_c_degree_1(g_an):
         notes.append(
-            f"c-degree>1 in free districts {[sorted(d) for d in free]}; "
-            "LP reduction not claimed"
+            f"c-degree>1 in free districts {[sorted(d) for d in free]}; LP reduction not claimed"
         )
         exo = tuple(n for n in g_an.topological_order() if not any(n in d for d in free))
         return Degree1Factorization(

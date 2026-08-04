@@ -9,7 +9,7 @@ from partialid import Assumptions, CausalDiagram, Query, Variables, bound
 from partialid.degree1 import analyze_degree1, c_degree_upper_bound
 from partialid.graph import normalize_hyperedge
 from partialid.program_degree import ProgramKind, classify_program
-from partialid.query_ast import Atom, Cond, LinComb, Lit, PO
+from partialid.query_ast import PO, Atom, LinComb, Lit
 from partialid.query_footprint import extract_footprint_from_expr
 
 
@@ -145,9 +145,7 @@ def test_polynomial_c_degree_3_uses_outer():
     r = bound(V, P, Q, Assumptions.from_diagram(g))
     assert r.method != "gpp/poly"
     assert r.tight is False
-    assert any(
-        "polynomial" in n or "outer" in n or "prefer_poly" in n for n in r.notes
-    )
+    assert any("polynomial" in n or "outer" in n or "prefer_poly" in n for n in r.notes)
 
 
 def _mediated_one_latent():
@@ -243,17 +241,13 @@ def test_e8_pn_ps_route_to_gpp_fixed_denom():
 
 def test_arbitrary_joint_counterfactual_footprint():
     """P(Y_z, W_x) multi-regime atom frees Y and W (no named factory)."""
-    expr = LinComb.atom(
-        Atom(Lit(PO("Y", {"Z": 1}), 1), Lit(PO("W", {"X": 0}), 1))
-    )
+    expr = LinComb.atom(Atom(Lit(PO("Y", {"Z": 1}), 1), Lit(PO("W", {"X": 0}), 1)))
     fp = extract_footprint_from_expr(expr)
     assert fp.cross_world_vars == frozenset({"Y", "W"})
     assert fp.intervention_vars == frozenset({"Z", "X"})
 
     # Single-world joint under one assignment is not cross-world
-    expr_sw = LinComb.atom(
-        Atom(Lit(PO("Y", {"X": 1}), 1), Lit(PO("M", {"X": 1}), 1))
-    )
+    expr_sw = LinComb.atom(Atom(Lit(PO("Y", {"X": 1}), 1), Lit(PO("M", {"X": 1}), 1)))
     fp_sw = extract_footprint_from_expr(expr_sw)
     assert fp_sw.cross_world_vars == frozenset()
 

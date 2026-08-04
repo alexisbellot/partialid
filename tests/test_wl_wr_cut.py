@@ -59,9 +59,7 @@ def test_classic_iv_wl_wr():
     )
     cut = detect_wl_wr_cut(g, treatments=["X"], outcome="Y")
     assert cut == (("Z",), ("X", "Y"))
-    prog = classify_program(
-        g, query=Query.interventional(outcome="Y", do={"X": 1}, value=1)
-    )
+    prog = classify_program(g, query=Query.interventional(outcome="Y", do={"X": 1}, value=1))
     assert prog.kind == ProgramKind.LINEAR
     assert prog.wl_wr_cut is not None
     assert set(prog.wl_wr_cut[0]) == {"Z"}

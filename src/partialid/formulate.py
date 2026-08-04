@@ -64,7 +64,9 @@ class LPData:
     allowed_types: np.ndarray  # boolean mask over all types (after hard faces)
     cells: list[tuple]
     P_vec: np.ndarray
-    method_hint: str = "lp"  # "lp" | "fiber" | "mip" | "convex" | "gpp" | "gpp/latent" | "gpp/poly" | "fractional"
+    method_hint: str = (
+        "lp"  # "lp" | "fiber" | "mip" | "convex" | "gpp" | "gpp/latent" | "gpp/poly" | "fractional"
+    )
     notes: list[str] = field(default_factory=list)
     support_k: int | None = None
     f_sensitivity: FSensitivityAssumption | None = None
@@ -197,6 +199,7 @@ def _outcome_mass_with_kernels(
     # Forward: if every exo before outcome is a Dirac given parents, fold in;
     # otherwise enumerate product of supports along exo_order up to outcome.
     pending = [v for v in exo_order if v not in known]
+
     # Recursive expectation
     def _expect(i: int) -> float:
         if outcome in known:
@@ -465,9 +468,7 @@ def formulate(
     # Inert prune first; WL–WR / instrument LP comes from post-cut classify below
     # (single cut authority — THEORY_PROGRAM_DEGREE §6 C2).
     if optimize:
-        variables, data, diagram = _inert_prune_order_only(
-            variables, data, query, diagram, notes
-        )
+        variables, data, diagram = _inert_prune_order_only(variables, data, query, diagram, notes)
 
     outer = False
     # Hard independence: v1 does not factorize the product program. Force a
@@ -508,9 +509,7 @@ def formulate(
             [
                 n
                 for n in prog.notes
-                if n.startswith("program:")
-                or n.startswith("C2 ")
-                or n.startswith("out of (H)")
+                if n.startswith("program:") or n.startswith("C2 ") or n.startswith("out of (H)")
             ]
         )
 
@@ -559,9 +558,7 @@ def formulate(
 
         def _restrict_ancestral() -> None:
             nonlocal variables, data, diagram
-            an_order = tuple(
-                n for n in diagram.topological_order() if n in fac.ancestral
-            )
+            an_order = tuple(n for n in diagram.topological_order() if n in fac.ancestral)
             if set(an_order) != set(diagram.nodes):
                 data = _remargin_data(variables, data, an_order)
                 variables = variables.restrict(an_order)
@@ -572,15 +569,11 @@ def formulate(
 
         if prog.kind == ProgramKind.LINEAR:
             # Prefer recorded C2 cut → instrument LP (same as early Prop. 8.4 path)
-            if (
-                prog.wl_wr_cut is not None
-                and query.kind in ("interventional", "ate")
-            ):
+            if prog.wl_wr_cut is not None and query.kind in ("interventional", "ate"):
                 _restrict_ancestral()
                 instruments, wr = prog.wl_wr_cut
                 notes.append(
-                    f"Prop. 8.4 WL–WR cut (classify C2): "
-                    f"WL={list(instruments)}, WR={list(wr)}"
+                    f"Prop. 8.4 WL–WR cut (classify C2): WL={list(instruments)}, WR={list(wr)}"
                 )
                 lp = formulate_instrument(
                     variables, data, query, diagram, instruments, wr, assumptions
@@ -592,12 +585,8 @@ def formulate(
             if len(free) == 1:
                 D = free[0]
                 r_side = tuple(n for n in diagram.topological_order() if n in D)
-                an_order = tuple(
-                    n for n in diagram.topological_order() if n in fac.ancestral
-                )
-                exo = tuple(
-                    n for n in an_order if n not in D
-                )
+                an_order = tuple(n for n in diagram.topological_order() if n in fac.ancestral)
+                exo = tuple(n for n in an_order if n not in D)
 
                 if set(an_order) != set(diagram.nodes):
                     data = _remargin_data(variables, data, an_order)
@@ -614,9 +603,7 @@ def formulate(
                         an_obs = variables.observed_names(an_order)
                         parent_of = {v: tuple(diagram.parents(v)) for v in exo}
                         kernels = {
-                            v: _empirical_kernel(
-                                variables, an_obs, data, v, parent_of[v]
-                            )
+                            v: _empirical_kernel(variables, an_obs, data, v, parent_of[v])
                             for v in exo
                         }
                         data_r = _remargin_data(variables, data, r_side)
@@ -717,14 +704,11 @@ def formulate(
                     # fall through with restricted diagram
 
         elif prog.kind == ProgramKind.POINT:
-            an_order = tuple(
-                n for n in diagram.topological_order() if n in fac.ancestral
-            )
+            an_order = tuple(n for n in diagram.topological_order() if n in fac.ancestral)
             if set(an_order) != set(diagram.nodes):
                 diagram = induced_subgraph(diagram, an_order)
                 notes.append(
-                    "POINT: no free district; restricted ancestral "
-                    f"{list(an_order)} (no merge)"
+                    f"POINT: no free district; restricted ancestral {list(an_order)} (no merge)"
                 )
 
         elif prog.kind == ProgramKind.BILINEAR_LATENT and prefer_gpp:
@@ -739,9 +723,7 @@ def formulate(
                 diagram = induced_subgraph(diagram, d_order)
             try:
                 if not _gpp_query_ok(diagram, variables, data):
-                    raise ValueError(
-                        "latent bilinear requires LinComb or fixed-denom Cond"
-                    )
+                    raise ValueError("latent bilinear requires LinComb or fixed-denom Cond")
                 gpp = build_latent_bilinear(
                     variables, data, query, diagram, frozenset(D), notes=notes
                 )
@@ -757,11 +739,7 @@ def formulate(
             from .types_canon import _all_functions as _afns
 
             _restrict_ancestral()
-            exo = tuple(
-                n
-                for n in diagram.topological_order()
-                if not any(n in d for d in free)
-            )
+            exo = tuple(n for n in diagram.topological_order() if not any(n in d for d in free))
             try:
                 if exo:
                     raise ValueError("exogenous nodes with ≥2 free districts")
@@ -780,16 +758,11 @@ def formulate(
                 if not gpp_size_ok(counts):
                     raise ValueError(f"GPP too large: {counts}")
                 if not _gpp_query_ok(diagram, variables, data):
-                    raise ValueError(
-                        "GPP requires LinComb or fixed-denom Cond (PN/PS)"
-                    )
-                gpp = build_gpp(
-                    variables, data, query, diagram, free, notes=notes
-                )
+                    raise ValueError("GPP requires LinComb or fixed-denom Cond (PN/PS)")
+                gpp = build_gpp(variables, data, query, diagram, free, notes=notes)
                 if isinstance(query.expr, _Cond):
                     gpp.notes = list(gpp.notes) + [
-                        "GPP Cond: fixed observational denominator "
-                        "(Tian–Pearl PN/PS linearization)"
+                        "GPP Cond: fixed observational denominator (Tian–Pearl PN/PS linearization)"
                     ]
                 return _gpp_stub(gpp, hint="gpp")
             except (ValueError, NotImplementedError, RuntimeError) as exc:
@@ -804,25 +777,16 @@ def formulate(
             if prefer_poly and prefer_gpp:
                 try:
                     if not _gpp_query_ok(diagram, variables, data):
-                        raise ValueError(
-                            "poly GPP requires LinComb or fixed-denom Cond"
-                        )
+                        raise ValueError("poly GPP requires LinComb or fixed-denom Cond")
                     # Factor-polynomial: K=3 free λ=1 districts
-                    if (
-                        len(free) == 3
-                        and all(cd == 1 for cd in prog.c_degrees)
-                    ):
+                    if len(free) == 3 and all(cd == 1 for cd in prog.c_degrees):
                         from .poly_gpp import build_poly_factor_gpp
 
                         exo = tuple(
-                            n
-                            for n in diagram.topological_order()
-                            if not any(n in d for d in free)
+                            n for n in diagram.topological_order() if not any(n in d for d in free)
                         )
                         if exo:
-                            raise ValueError(
-                                "poly factor GPP: exogenous nodes present"
-                            )
+                            raise ValueError("poly factor GPP: exogenous nodes present")
                         poly = build_poly_factor_gpp(
                             variables, data, query, diagram, free, notes=notes
                         )
@@ -836,8 +800,7 @@ def formulate(
                     )
                 except (ValueError, NotImplementedError, RuntimeError) as exc:
                     notes.append(
-                        f"poly GPP unavailable ({exc}); "
-                        "explicit outer fallback (tight=False)."
+                        f"poly GPP unavailable ({exc}); explicit outer fallback (tight=False)."
                     )
             elif not prefer_poly:
                 notes.append(
