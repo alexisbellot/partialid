@@ -53,9 +53,9 @@ docs = [
   "mkdocs-material>=9.5",
   "mkdocstrings>=0.25",
   "mkdocstrings-python>=1.10",
-  # pymdown-extensions 12.3 requires Highlight(md). The last mkdocstrings
+  # pymdown-extensions 12.2 requires Highlight(md). The last mkdocstrings
   # that still installs on Python 3.10 (1.0.6) does not pass it.
-  "pymdown-extensions>=10.2,<12.3; python_version < '3.11'",
+  "pymdown-extensions>=10.2,<12.2; python_version < '3.11'",
 ]
 notebooks = [
   "jupyter>=1.0",
@@ -73,7 +73,7 @@ dev = [
   "mkdocs-material>=9.5",
   "mkdocstrings>=0.25",
   "mkdocstrings-python>=1.10",
-  "pymdown-extensions>=10.2,<12.3; python_version < '3.11'",
+  "pymdown-extensions>=10.2,<12.2; python_version < '3.11'",
   "jupyter>=1.0",
   "ipykernel>=6.0",
 ]
