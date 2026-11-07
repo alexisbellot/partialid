@@ -27,22 +27,29 @@ from .variables import Variables
 
 
 @dataclass(frozen=True)
-class CondFactor:
-    """Observational factor P(outcome_vars | condition_vars)."""
+class BaseMarg:
+    """Observational marginal P(keep) of the input table."""
 
-    outcome_vars: tuple[str, ...]
-    condition_vars: tuple[str, ...]
+    keep: frozenset[str]
 
 
 @dataclass
 class IDExpr:
     """Product of factors / sub-expressions, marginalized over ``sum_vars``."""
 
-    factors: list  # CondFactor | IDExpr
+    factors: list  # BaseMarg | Ratio | IDExpr
     sum_vars: tuple[str, ...] = ()
 
     def is_fail(self) -> bool:
         return False
+
+
+@dataclass
+class Ratio:
+    """Quotient ``num / den`` of two expressions (a conditional)."""
+
+    num: object
+    den: object
 
 
 @dataclass
@@ -152,12 +159,37 @@ def identify(
     outcomes: Sequence[str],
 ) -> IDExpr | IDFail:
     """Return an identifying expression for P(outcomes | do(treatments)), or fail."""
-    return _id(
-        g,
-        frozenset(treatments),
-        frozenset(outcomes),
-        frozenset(g.nodes),
-    )
+    nodes = frozenset(g.nodes)
+    expr = _id(g, frozenset(treatments), frozenset(outcomes), nodes, BaseMarg(nodes))
+    if isinstance(expr, IDFail):
+        return expr
+    return IDExpr(factors=[expr])
+
+
+def _marg(P, scope: frozenset[str], keep: frozenset[str]):
+    """Marginal onto ``keep`` of distribution ``P`` over ``scope``.
+
+    Variables of ``P`` outside ``scope`` are fixed by the enclosing context.
+    """
+    if isinstance(P, BaseMarg):
+        return BaseMarg(P.keep - (scope - keep))
+    drop = scope - keep
+    if not drop:
+        return P
+    return IDExpr(factors=[P], sum_vars=tuple(sorted(drop)))
+
+
+def _kernel_product(P, scope: frozenset[str], targets: frozenset[str], topo: list[str]) -> list:
+    """Factors ∏_{v in targets} P(v | predecessors of v in ``topo``) under ``P``."""
+    factors: list = []
+    before: list[str] = []
+    for v in topo:
+        if v in targets:
+            given = frozenset(before)
+            num = _marg(P, scope, (given | {v}) & scope)
+            factors.append(Ratio(num, _marg(P, scope, given & scope)) if given & scope else num)
+        before.append(v)
+    return factors
 
 
 def _id(
@@ -165,22 +197,25 @@ def _id(
     X: frozenset[str],
     Y: frozenset[str],
     V: frozenset[str],
-) -> IDExpr | IDFail:
+    P,
+):
+    """ID(Y, X, P, G[V]) where ``P`` is a distribution over ``V``.
+
+    Variables referenced by ``P`` outside ``V`` are fixed by the caller.
+    """
     gV = _subgraph(g, V)
     X = X & V
     Y = Y & V
 
     # Line 1: no intervention
     if not X:
-        return IDExpr(
-            factors=[CondFactor(outcome_vars=tuple(sorted(V)), condition_vars=())],
-            sum_vars=tuple(sorted(V - Y)),
-        )
+        return _marg(P, V, Y)
 
     # Line 2: restrict to ancestors of Y
     an = _ancestors(gV, Y)
     if V - an:
-        return _id(g, X & an, Y, frozenset(an))
+        keep = frozenset(an)
+        return _id(g, X & keep, Y, keep, _marg(P, V, keep))
 
     # Line 3: force inactive interventions
     # G_{\bar X}: remove edges *into* X
@@ -193,7 +228,7 @@ def _id(
     an_bar = _ancestors(g_bar, Y)
     W = (V - X) - an_bar
     if W:
-        return _id(g, X | frozenset(W), Y, V)
+        return _id(g, X | frozenset(W), Y, V, P)
 
     # Line 4: c-component factorization of G_{V\\X}
     VminusX = V - X
@@ -201,8 +236,8 @@ def _id(
     if len(comps) > 1:
         factors: list = []
         for S in comps:
-            sub = _id(g, V - S, frozenset(S), V)
-            if isinstance(sub, IDFail) or sub.is_fail():
+            sub = _id(g, V - S, frozenset(S), V, P)
+            if isinstance(sub, IDFail):
                 return IDFail()
             factors.append(sub)
         return IDExpr(factors=factors, sum_vars=tuple(sorted(V - Y - X)))
@@ -215,31 +250,21 @@ def _id(
     if len(comps_G) == 1 and comps_G[0] == V:
         return IDFail()
 
-    # Line 6: S itself is a district of G
-    if S in comps_G:
-        # ∏_{v in S topo} P(v | past) , sum over S\Y
-        topo = _topo(gV, S)
-        factors = []
-        prev: list[str] = []
-        # conditioning set is all predecessors in V that precede v in a topo of V
-        topo_V = _topo(gV, V)
-        for v in topo_V:
-            if v not in S:
-                continue
-            # predecessors among V in topo order
-            cond = tuple(u for u in topo_V if u == v and False)  # placeholder
-        factors = []
-        seen_before: list[str] = []
-        for v in topo_V:
-            if v in S:
-                factors.append(CondFactor(outcome_vars=(v,), condition_vars=tuple(seen_before)))
-            seen_before.append(v)
-        return IDExpr(factors=factors, sum_vars=tuple(sorted(S - Y)))
+    # The order must be topological in G, not only in G[V].
+    topo_V = [v for v in _topo(g) if v in V]
 
-    # Line 7: S proper subset of some district S' of G
+    # Line 6: S is a district of G[V]: ∑_{S\Y} ∏_{v∈S} P(v | v_π^{(i-1)})
+    if S in comps_G:
+        return IDExpr(
+            factors=_kernel_product(P, V, S, topo_V),
+            sum_vars=tuple(sorted(S - Y)),
+        )
+
+    # Line 7: S ⊂ S' (a district of G[V]); recurse with P' = ∏_{v∈S'} P(v | v_π^{(i-1)})
     for Sprime in comps_G:
-        if S < Sprime:  # proper subset
-            return _id(g, X & Sprime, Y, frozenset(Sprime))
+        if S < Sprime:
+            P_new = IDExpr(factors=_kernel_product(P, V, Sprime, topo_V))
+            return _id(g, X & Sprime, Y, frozenset(Sprime), P_new)
 
     return IDFail()
 
@@ -286,19 +311,24 @@ class _Table:
 
 
 def _eval_expr(
-    expr: IDExpr | CondFactor,
+    expr: IDExpr | BaseMarg | Ratio,
     table: _Table,
     fixed: Mapping[str, object],
 ) -> float:
-    if isinstance(expr, CondFactor):
-        # With current assignment in ``fixed`` for all vars, return
-        # P(outcome=fixed[outcome] | condition=fixed[condition])
-        out = {v: fixed[v] for v in expr.outcome_vars}
-        given = {v: fixed[v] for v in expr.condition_vars}
-        return table.cond(out, given)
+    if isinstance(expr, BaseMarg):
+        # Line 3 of ID adds interventions whose value the expression does not
+        # depend on; when the context leaves one unassigned, any value is valid.
+        asg = {v: fixed.get(v, table.domains[v][0]) for v in expr.keep}
+        return table.joint(asg)
+
+    if isinstance(expr, Ratio):
+        den = _eval_expr(expr.den, table, fixed)
+        if not np.isfinite(den) or den <= 1e-15:
+            return float("nan")
+        return _eval_expr(expr.num, table, fixed) / den
 
     assert isinstance(expr, IDExpr)
-    sum_vars = [v for v in expr.sum_vars if v not in fixed]
+    sum_vars = list(expr.sum_vars)
     if not sum_vars:
         # product of factors
         val = 1.0

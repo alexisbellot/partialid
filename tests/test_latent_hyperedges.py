@@ -69,15 +69,17 @@ def test_manski_order_is_full_hyperedge_linear():
     assert prog.degree == 1
 
 
-def test_classifier_pair_chain_bilinear_latent():
+def test_classifier_pair_chain_root_block_linear():
+    """λ=2 with root private block X: sharp program is an LP, degree still 2."""
     g = CausalDiagram.from_edges(
         ["X", "M", "Y"],
         directed=[("X", "M"), ("M", "Y")],
         bidirected=[("X", "M"), ("M", "Y")],
     )
     prog = classify_program(g, treatments=["X"], outcome="Y")
-    assert prog.kind == ProgramKind.BILINEAR_LATENT
+    assert prog.kind == ProgramKind.LINEAR
     assert prog.degree == 2
+    assert any("root private block" in n for n in prog.notes)
 
 
 def test_classifier_triple_hyperedge_linear():
@@ -120,7 +122,7 @@ def test_sharp_bilinear_tighter_than_single_latent_lp():
     )
     r_bi = bound(V, P, Q, Assumptions.from_diagram(g_pair))
     r_lp = bound(V, P, Q, Assumptions.from_diagram(g_one))
-    assert r_bi.method == "gpp/latent"
+    assert r_bi.method == "lp"
     assert r_bi.tight
     assert r_lp.tight
     # Two independent latents is a stricter model than one joint latent.
@@ -308,3 +310,84 @@ def test_from_expr_does_not_inject_default_outcome_seed():
     fac = analyze_degree1(g, query=Q)
     assert "Y" not in fac.ancestral
     assert fac.free_districts == (frozenset({"A", "B"}),)
+
+
+RE2 = {
+    (0, 0, 0): 0.20, (0, 0, 1): 0.05, (0, 1, 0): 0.10, (0, 1, 1): 0.15,
+    (1, 0, 0): 0.05, (1, 0, 1): 0.10, (1, 1, 0): 0.10, (1, 1, 1): 0.25,
+}
+
+
+def test_pair_chain_lift_matches_known_intervals():
+    """Pair chain on eq:re2: P(Y_1=1) is Manski; PNS is strictly tighter."""
+    g = CausalDiagram.from_edges(
+        ["X", "W", "Y"],
+        directed=[("X", "W"), ("W", "Y")],
+        bidirected=[("X", "W"), ("W", "Y")],
+    )
+    V = Variables.from_binary("X", "W", "Y")
+    a = Assumptions.from_diagram(g)
+    r = bound(V, RE2, Query.interventional(outcome="Y", do={"X": 1}, value=1), a)
+    assert r.success and r.tight and r.method == "lp"
+    assert abs(r.lower - 0.35) < 1e-6 and abs(r.upper - 0.85) < 1e-6
+    pns = bound(V, RE2, Query.pns(treatment="X", outcome="Y"), a)
+    assert pns.success and pns.tight
+    assert abs(pns.lower - 0.0) < 1e-6 and abs(pns.upper - 0.60) < 1e-6
+
+
+def test_confounded_instrument_matches_balke_pearl():
+    V = Variables.from_binary("Z", "X", "Y")
+    Q = Query.interventional(outcome="Y", do={"X": 1}, value=1)
+    g_iv = CausalDiagram.from_edges(
+        ["Z", "X", "Y"],
+        directed=[("Z", "X"), ("X", "Y")],
+        bidirected=[("X", "Y")],
+    )
+    g_zx = CausalDiagram.from_edges(
+        ["Z", "X", "Y"],
+        directed=[("Z", "X"), ("X", "Y")],
+        bidirected=[("Z", "X"), ("X", "Y")],
+    )
+    r_iv = bound(V, RE2, Q, Assumptions.from_diagram(g_iv))
+    r_zx = bound(V, RE2, Q, Assumptions.from_diagram(g_zx))
+    assert r_iv.tight and r_zx.tight and r_zx.method == "lp"
+    assert abs(r_iv.lower - r_zx.lower) < 1e-6
+    assert abs(r_iv.upper - r_zx.upper) < 1e-6
+    assert r_zx.lower > 0.45  # free joint on this table is [0.40, 0.80]
+
+
+def test_descendant_sharing_a_latent_is_not_trimmed_away():
+    """X→Y→D with {X,Y} and {X,D}: dropping D is a strictly loose outer bound."""
+    g = CausalDiagram.from_edges(
+        ["X", "Y", "D"],
+        directed=[("X", "Y"), ("Y", "D")],
+        bidirected=[("X", "Y"), ("X", "D")],
+    )
+    P = {
+        (0, 0, 0): 0.046, (0, 0, 1): 0.010, (0, 1, 0): 0.047, (0, 1, 1): 0.498,
+        (1, 0, 0): 0.103, (1, 0, 1): 0.279, (1, 1, 0): 0.010, (1, 1, 1): 0.007,
+    }
+    V = Variables.from_binary("X", "Y", "D")
+    Q = Query.interventional(outcome="Y", do={"X": 1}, value=1)
+    prog = classify_program(g, query=Q)
+    assert any("D" in d for d in ("".join(sorted(s)) for s in prog.free_districts))
+    # Neither private block is a root, so this is not the linear lift.
+    assert prog.kind != ProgramKind.LINEAR
+    r = bound(V, P, Q, Assumptions.from_diagram(g), prefer_gpp=False)
+    # Manski on the (X,Y) margin is about [0.017, 0.618]. The full model is
+    # strictly inside; an outer solver must not certify the Manski interval.
+    assert r.success
+    assert not (r.tight and r.lower < 0.018 and r.upper > 0.61)
+
+
+def test_pinning_rejects_mediated_table_that_breaks_conditional_independence():
+    g = CausalDiagram.from_edges(
+        ["X", "W", "Y"],
+        directed=[("X", "W"), ("W", "Y")],
+        bidirected=[("X", "W")],
+    )
+    V = Variables.from_binary("X", "W", "Y")
+    Q = Query.interventional(outcome="Y", do={"X": 1}, value=1)
+    r = bound(V, RE2, Q, Assumptions.from_diagram(g))
+    assert r.success is False
+    assert any("pinning" in n or "infeasible" in n for n in r.notes)

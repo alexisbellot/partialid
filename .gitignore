@@ -2,15 +2,22 @@
 papers/
 latex/
 Figures/
+THEORY.md
+THEORY_PROGRAM_DEGREE.md
+FOUNDATIONS.md
+IDEAS.md
+THEOREM_LP_EVERY_TABLE.md
+GRAPHICAL_LP_CONDITIONS.md
+THEOREM_NORMAL_FORM.md
+THEOREM_NORMAL_FORM_CORRECTED.md
+THEORY_STRENGTHENINGS.md
+WHEN_THE_BOUNDS_ARE_AN_LP.md
+CLAUDE.md
+# Legacy planning notes (removed; keep ignore if recreated)
 ROADMAP_*.md
 SOLVERS.md
-THEORY.md
-FOUNDATIONS.md
 LP_ASSUMPTIONS_101.md
 README_PI_SOLVER.md
-IDEAS.md
-THEORY_PROGRAM_DEGREE.md
-CLAUDE.md
 scripts/md_to_theory_tex.py
 scripts/polish_theory_tex.py
 

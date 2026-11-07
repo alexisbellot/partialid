@@ -49,6 +49,20 @@ def is_fiber_separable(lp: LPData) -> bool:
         return False
     if lp.support_k is not None or lp.f_sensitivity is not None:
         return False
-    if any("instrument LP" in n for n in lp.notes):
+    if any(
+        "instrument LP" in n or "root-block lift" in n or "pinning failed" in n
+        for n in lp.notes
+    ):
+        return False
+    # An explicit empty model is the equality 0 = 1, which a per-cell scan
+    # never sees (it has no observational cells).
+    if any(str(n).startswith("infeasible:") for n in lp.notes):
+        return False
+    # Stacked / block-diagonal LPs concatenate several type spaces; a
+    # per-cell scan on the first block is not the joint optimum.
+    if any("stacked" in n for n in lp.notes):
+        return False
+    ts = getattr(lp, "type_space", None)
+    if ts is not None and len(np.asarray(lp.c)) != int(ts.n_types):
         return False
     return True

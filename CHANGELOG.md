@@ -11,8 +11,31 @@ versioning follows [SemVer](https://semver.org/) (0.x API may evolve; see
 ### Changed
 - Removed `examples/`; tutorials under `notebooks/` are the canonical runnable
   examples (executed in CI via `tests/test_docs_recipes.py`).
+- Dropped outdated local planning notes superseded by `docs/` / `README.md`
+  (`ROADMAP_*.md`, `README_PI_SOLVER.md`, `SOLVERS.md`, `LP_ASSUMPTIONS_101.md`).
 
 ### Fixed
+- Shpitser–Pearl ID: line 7 now recurses with the c-factor
+  \(\prod_{v \in S'} P(v \mid v_\pi^{(i-1)})\) instead of the original table.
+  Graphs that reach line 7 (for example the front door \(X \to Z \to Y\),
+  \(X \leftrightarrow Y\)) previously returned a wrong point value.
+- A c-component with two latents and a root private block (pair chain, instrument
+  confounded with the treatment) is an exact LP in the joint response types;
+  `classify_program` labels it linear and `bound` returns `tight=True`.
+- Ancestral trim keeps every variable that shares a c-component with the
+  query's ancestors. Dropping such a variable is an outer bound; it is no
+  longer reported as sharp.
+- Pinning an unconfounded variable checks that its conditional depends on the
+  preceding variables only through its parents. A violated equality (for
+  example \(Y \not\perp X \mid W\) on the mediated graph) is infeasible.
+- A district removed by the ancestral trim or a directed cut is still part of
+  the model. If no response law reproduces it, the query is infeasible; if its
+  fiber is not a known polytope, the bounds are an outer approximation.
+- A factual factor, a sum of a root-private block and a separate \(\lambda=1\)
+  block, a hyperedge contained in a larger one, and the sufficient fiber lemma
+  (a star of instruments) are exact linear programs.
+- A factual query on a point-identified instrument remargins the table onto the
+  ancestral variables instead of failing on the key length.
 - Measurement-error / latent-endogenous graphs: keep observed proxies in the
   ancestral set, skip spurious ID→POINT when the outcome is latent, and
   remargin observational tables on observed coordinates only.

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Mapping, Sequence
+from typing import Mapping, Sequence  # Sequence used by separable stack
 
 import numpy as np
 from scipy import sparse
@@ -151,6 +151,94 @@ def _exo_are_markovian_children(
         if a in exo_s and b in free_s:
             return False
     return True
+
+
+def _descendants(diagram: CausalDiagram, node: str) -> set[str]:
+    children: dict[str, list[str]] = {}
+    for a, b in diagram.directed:
+        children.setdefault(a, []).append(b)
+    desc: set[str] = set()
+    stack = list(children.get(node, ()))
+    while stack:
+        n = stack.pop()
+        if n in desc:
+            continue
+        desc.add(n)
+        stack.extend(children.get(n, ()))
+    return desc
+
+
+def pinning_kernel_holds(
+    variables: Variables,
+    order: Sequence[str],
+    data: Mapping,
+    diagram: CausalDiagram,
+    child: str,
+    parents: Sequence[str],
+    *,
+    tol: float = 1e-8,
+) -> bool:
+    """True when P(child | non-descendants) depends on them only through ``parents``.
+
+    Pinning replaces an unconfounded mechanism by P(child | parents). That
+    substitution matches the model only if the conditional does not vary with
+    the other preceding variables. A violation is a falsified model, not a
+    wider kernel.
+    """
+    desc = _descendants(diagram, child)
+    cond = [v for v in order if v != child and v not in desc]
+    if set(parents) - set(cond):
+        return False
+    cells, P = _normalize_P(variables, order, data)
+    idx = {n: i for i, n in enumerate(order)}
+    # Mass of (cond, child-value), then compare slices that share parents.
+    buckets: dict[tuple, dict[object, float]] = {}
+    for cell, mass in zip(cells, P):
+        if float(mass) <= 0:
+            continue
+        key = tuple(cell[idx[v]] for v in cond)
+        buckets.setdefault(key, {})
+        val = cell[idx[child]]
+        buckets[key][val] = buckets[key].get(val, 0.0) + float(mass)
+    pa_idx = [cond.index(p) for p in parents]
+    by_pa: dict[tuple, dict[object, float]] = {}
+    for key, dist in buckets.items():
+        s = sum(dist.values())
+        if s <= tol:
+            continue
+        norm = {k: v / s for k, v in dist.items()}
+        pa = tuple(key[i] for i in pa_idx)
+        prev = by_pa.get(pa)
+        if prev is None:
+            by_pa[pa] = norm
+            continue
+        keys = set(prev) | set(norm)
+        if any(abs(prev.get(k, 0.0) - norm.get(k, 0.0)) > tol for k in keys):
+            return False
+    return True
+
+
+def _infeasible_lp(variables: Variables, notes: list[str], message: str) -> LPData:
+    """An LP with no feasible point, so ``bound`` reports success=False."""
+    name = variables.names[0]
+    g = CausalDiagram(nodes=(name,), directed=(), bidirected=())
+    ts = TypeSpace.from_diagram(variables.restrict((name,)), g)
+    n = ts.n_types
+    notes = list(notes) + [message]
+    return LPData(
+        c=np.zeros(n),
+        A_eq=sparse.csr_matrix(np.zeros((1, n))),
+        b_eq=np.ones(1),
+        A_ub=None,
+        b_ub=None,
+        type_space=ts,
+        allowed_types=np.ones(n, dtype=bool),
+        cells=[],
+        P_vec=np.zeros(0),
+        method_hint="lp",
+        notes=notes,
+        outer_approximation=False,
+    )
 
 
 def _empirical_kernel(
@@ -425,6 +513,960 @@ def _inert_prune_order_only(
     return variables, data, diagram
 
 
+def _external_parents(diagram: CausalDiagram, district: frozenset[str]) -> tuple[str, ...]:
+    ext: set[str] = set()
+    for v in district:
+        for p in diagram.parents(v):
+            if p not in district:
+                ext.add(p)
+    return tuple(n for n in diagram.topological_order() if n in ext)
+
+
+def _po_atom_as_interventional(atom: object) -> Query | None:
+    """Single flat PO equality → ``Query.interventional``, else None."""
+    from .query_ast import PO
+
+    lits = getattr(atom, "lits", ())
+    if len(lits) != 1:
+        return None
+    lit = lits[0]
+    if not isinstance(lit.expr, PO) or not lit.expr.is_flat():
+        return None
+    if any(isinstance(v, PO) for v in lit.expr.assignment.values()):
+        return None
+    return Query.interventional(
+        outcome=lit.expr.var, do=dict(lit.expr.assignment), value=lit.value
+    )
+
+
+def _block_query(terms: list[tuple[float, object]]) -> Query | None:
+    """Build a per-district query from LinComb terms assigned to one block."""
+    from .query_ast import LinComb
+
+    if not terms:
+        return None
+    if len(terms) == 1 and abs(terms[0][0] - 1.0) < 1e-15:
+        q = _po_atom_as_interventional(terms[0][1])
+        if q is not None:
+            return q
+    if len(terms) == 2:
+        (c1, a1), (c2, a2) = terms
+        q1, q2 = _po_atom_as_interventional(a1), _po_atom_as_interventional(a2)
+        if (
+            q1 is not None
+            and q2 is not None
+            and q1.outcome == q2.outcome
+            and abs(abs(c1) - 1.0) < 1e-15
+            and abs(c1 + c2) < 1e-15
+        ):
+            t1 = next(iter(q1.intervention))
+            t0 = next(iter(q2.intervention))
+            if t1 == t0:
+                treat, high, low = t1, q1, q2
+                if c1 < 0:
+                    high, low = q2, q1
+                return Query.ate(
+                    outcome=high.outcome,
+                    treatment=treat,
+                    y=high.value,
+                    t1=high.intervention[treat],
+                    t0=low.intervention[treat],
+                )
+    from .query_ast import PO
+
+    outcome = "Y"
+    interv: dict[str, object] = {}
+    lits = getattr(terms[0][1], "lits", ())
+    if lits and isinstance(lits[0].expr, PO):
+        outcome = lits[0].expr.var
+        interv = dict(lits[0].expr.assignment)
+    return Query.from_expr(LinComb(terms), outcome=outcome, intervention=interv)
+
+
+def _formulate_one_lambda1_block(
+    variables: Variables,
+    data: Mapping,
+    sub_q: Query,
+    diagram: CausalDiagram,
+    district: frozenset[str],
+    assumptions: AssumptionSet | None,
+    notes: list[str],
+) -> LPData:
+    """Tight LP on one ``λ=1`` district (c-factor constraints)."""
+    from .degree1 import induced_subgraph
+    from .instrument import formulate_instrument
+
+    r_side = tuple(n for n in diagram.topological_order() if n in district)
+    ext = _external_parents(diagram, district)
+    if ext:
+        if sub_q.kind not in ("interventional", "ate"):
+            raise ValueError(
+                f"separable block {sorted(district)} has parents {list(ext)} "
+                f"but query kind {sub_q.kind!r} is not interventional/ate"
+            )
+        notes.append(f"stacked block {list(r_side)} via cut I={list(ext)}")
+        lp = formulate_instrument(variables, data, sub_q, diagram, ext, r_side, assumptions)
+        lp.notes = notes + list(lp.notes)
+        return lp
+
+    data_r = _remargin_data(variables, data, r_side)
+    variables_r = variables.restrict(r_side)
+    diagram_r = induced_subgraph(diagram, r_side)
+    notes.append(f"stacked block {list(r_side)} (no external parents)")
+    ts = TypeSpace.from_diagram(variables_r, diagram_r)
+    cells, P = _normalize_P(variables_r, ts.order, data_r)
+    allow = _hard_face_mask(ts, as_assumption_set(assumptions))
+    c, c_den, obj_notes = _build_objective(ts, sub_q, allow, cells=cells, P_vec=P)
+    notes.extend(obj_notes)
+    n = ts.n_types
+    eq_rows = []
+    eq_rhs = []
+    for i, cell in enumerate(cells):
+        row = np.zeros(n)
+        for ti in ts.fiber[cell]:
+            if allow[ti]:
+                row[ti] = 1.0
+        eq_rows.append(row)
+        eq_rhs.append(P[i])
+    return LPData(
+        c=c,
+        A_eq=sparse.csr_matrix(np.vstack(eq_rows)) if eq_rows else sparse.csr_matrix((0, n)),
+        b_eq=np.asarray(eq_rhs, dtype=float),
+        A_ub=None,
+        b_ub=None,
+        type_space=ts,
+        allowed_types=allow,
+        cells=cells,
+        P_vec=P,
+        method_hint="lp",
+        notes=list(notes),
+        outer_approximation=False,
+        c_den=c_den,
+    )
+
+
+def _stack_lpdata(blocks: list[LPData], notes: list[str]) -> LPData:
+    """Block-diagonal LP: min/max ``∑ c_jᵀ q_j`` s.t. each block's equalities."""
+    if not blocks:
+        raise ValueError("no separable blocks to stack")
+    if len(blocks) == 1:
+        blocks[0].notes = notes + list(blocks[0].notes)
+        return blocks[0]
+
+    cs = [np.asarray(b.c, dtype=float) for b in blocks]
+    c = np.concatenate(cs)
+    A_blocks = []
+    b_parts = []
+    for b, cj in zip(blocks, cs):
+        A = b.A_eq.tocsr() if b.A_eq is not None else sparse.csr_matrix((0, len(cj)))
+        A_blocks.append(A)
+        b_parts.append(np.asarray(b.b_eq, dtype=float))
+    A_eq = sparse.block_diag(A_blocks, format="csr")
+    b_eq = np.concatenate(b_parts) if b_parts else np.zeros(0)
+
+    ub_blocks = []
+    ub_rhs = []
+    have_ub = False
+    for b, cj in zip(blocks, cs):
+        if b.A_ub is not None and b.b_ub is not None and b.A_ub.shape[0] > 0:
+            have_ub = True
+            ub_blocks.append(b.A_ub.tocsr())
+            ub_rhs.append(np.asarray(b.b_ub, dtype=float))
+        else:
+            ub_blocks.append(sparse.csr_matrix((0, len(cj))))
+            ub_rhs.append(np.zeros(0))
+    A_ub = sparse.block_diag(ub_blocks, format="csr") if have_ub else None
+    b_ub = np.concatenate(ub_rhs) if have_ub else None
+
+    notes = notes + [f"stacked {len(blocks)} LPs (block-diagonal, tight)"]
+    for b in blocks:
+        notes.extend(b.notes)
+    return LPData(
+        c=c,
+        A_eq=A_eq,
+        b_eq=b_eq,
+        A_ub=A_ub,
+        b_ub=b_ub,
+        type_space=blocks[0].type_space,
+        allowed_types=np.concatenate([np.asarray(b.allowed_types) for b in blocks]),
+        cells=list(blocks[0].cells),
+        P_vec=np.asarray(blocks[0].P_vec, dtype=float),
+        method_hint="lp",
+        notes=notes,
+        outer_approximation=False,
+    )
+
+
+def _lp_is_empty(lp: LPData) -> bool:
+    return any(str(n).startswith("infeasible:") for n in lp.notes)
+
+
+def _system_feasible(lp: LPData) -> bool | None:
+    """Whether ``A q = b``, ``q ≥ 0`` has a solution. None if the solver is inconclusive."""
+    from scipy.optimize import linprog
+
+    if lp.A_eq is None:
+        return None
+    n = int(lp.A_eq.shape[1])
+    if n == 0:
+        return True
+    allow = np.asarray(lp.allowed_types)
+    bounds = [
+        ((0.0, None) if (t < len(allow) and bool(allow[t])) else (0.0, 0.0)) for t in range(n)
+    ]
+    res = linprog(
+        np.zeros(n),
+        A_ub=lp.A_ub,
+        b_ub=lp.b_ub,
+        A_eq=lp.A_eq,
+        b_eq=lp.b_eq,
+        bounds=bounds,
+        method="highs",
+    )
+    if res.status == 0:
+        return True
+    if res.status == 2:
+        return False
+    return None
+
+
+def _event_mass(variables: Variables, data: Mapping, lits: Sequence) -> float:
+    """Joint probability of factual literals. ``1`` when there are none."""
+    if not lits:
+        return 1.0
+    vals: dict[str, object] = {}
+    for lit in lits:
+        if not isinstance(lit.expr, str):
+            raise ValueError("factual factor contains a counterfactual literal")
+        vals[lit.expr] = lit.value
+    order = tuple(vals)
+    marg = _remargin_data(variables, data, order)
+    obs = variables.observed_names(order)
+    total = 0.0
+    for key, mass in marg.items():
+        got = dict(zip(obs, key))
+        if all(got[name] == vals[name] for name in obs):
+            total += float(mass)
+    return total
+
+
+def _constant_block(value: float) -> LPData:
+    """One column fixed at 1, so the objective contributes the constant ``value``."""
+    v = Variables(names=("_c",), domains={"_c": (0,)})
+    g = CausalDiagram(nodes=("_c",), directed=(), bidirected=())
+    ts = TypeSpace.from_diagram(v, g)
+    return LPData(
+        c=np.array([float(value)]),
+        A_eq=sparse.csr_matrix(np.array([[1.0]])),
+        b_eq=np.array([1.0]),
+        A_ub=None,
+        b_ub=None,
+        type_space=ts,
+        allowed_types=np.ones(ts.n_types, dtype=bool),
+        cells=[(0,)],
+        P_vec=np.array([1.0]),
+        method_hint="lp",
+        notes=["additive constant from a factual factor"],
+        outer_approximation=False,
+    )
+
+
+def _component_factor_proper(
+    variables: Variables,
+    data: Mapping,
+    diagram: CausalDiagram,
+    district: frozenset[str],
+) -> bool:
+    """True when each c-factor conditional depends only on the district and its outside parents."""
+    from .graphical_lp import outside_parents
+
+    # Data tuples are indexed in declaration order, which need not be the
+    # topological order (an isolated node can sit between a parent and child).
+    order = list(variables.observed_names())
+    allowed = set(district) | set(outside_parents(diagram, district))
+    for v in district:
+        if v not in order:
+            return False
+        desc = _descendants(diagram, v)
+        parents = [p for p in order if p != v and p not in desc and p in allowed]
+        if not pinning_kernel_holds(variables, order, data, diagram, v, parents):
+            return False
+    return True
+
+
+def _blocks_independent(
+    variables: Variables,
+    data: Mapping,
+    blocks: Sequence[Sequence[str]],
+) -> bool:
+    """True when the joint of ``blocks`` equals the product of the block marginals."""
+    if len(blocks) <= 1:
+        return True
+    names = tuple(v for block in blocks for v in block)
+    if any(not variables.is_observed(v) for v in names):
+        return False
+    marg = _remargin_data(variables, data, names)
+    obs = variables.observed_names(names)
+    groups = [tuple(obs.index(v) for v in block if v in obs) for block in blocks]
+    margins: list[dict[tuple, float]] = []
+    for idxs in groups:
+        one: dict[tuple, float] = {}
+        for key, mass in marg.items():
+            bk = tuple(key[i] for i in idxs)
+            one[bk] = one.get(bk, 0.0) + float(mass)
+        margins.append(one)
+    for key, mass in marg.items():
+        prod = 1.0
+        for idxs, one in zip(groups, margins):
+            prod *= one[tuple(key[i] for i in idxs)]
+        if abs(float(mass) - prod) > 1e-7:
+            return False
+    return True
+
+
+def _lambda2_district_feasible(
+    variables: Variables,
+    data: Mapping,
+    diagram: CausalDiagram,
+    district: frozenset[str],
+    assumptions: AssumptionSet,
+) -> bool | None:
+    """Feasibility of the λ=2 root-private LP on a district with no outside parent."""
+    from .degree1 import induced_subgraph
+
+    nodes = tuple(n for n in diagram.topological_order() if n in district)
+    if not nodes:
+        return None
+    g = induced_subgraph(diagram, nodes)
+    v = variables.restrict(nodes)
+    data_r = _remargin_data(variables, data, nodes)
+    q = Query.interventional(outcome=nodes[-1], do={}, value=v.domains[nodes[-1]][0])
+    lp = _formulate_lambda2_lift(v, data_r, q, g, assumptions, [], district, ())
+    if lp is None:
+        return None
+    if _lp_is_empty(lp):
+        return False
+    return _system_feasible(lp)
+
+
+def _one_edge_feasible(
+    variables: Variables,
+    data: Mapping,
+    diagram: CausalDiagram,
+    district: frozenset[str],
+    assumptions: AssumptionSet,
+) -> bool | None:
+    """Feasibility of one hyperedge with outside parents (the instrument LP)."""
+    from .degree1 import induced_subgraph
+    from .graphical_lp import outside_parents
+    from .instrument import formulate_instrument
+
+    ext = outside_parents(diagram, district)
+    if not ext:
+        return True
+    keep = set(district) | set(ext)
+    nodes = tuple(n for n in diagram.topological_order() if n in keep)
+    g = induced_subgraph(diagram, nodes)
+    v = variables.restrict(nodes)
+    data_r = _remargin_data(variables, data, nodes)
+    r_side = tuple(n for n in nodes if n in district)
+    q = Query.interventional(outcome=r_side[-1], do={}, value=v.domains[r_side[-1]][0])
+    try:
+        lp = formulate_instrument(v, data_r, q, g, ext, r_side, assumptions)
+    except (ValueError, NotImplementedError, RuntimeError):
+        return None
+    if _lp_is_empty(lp):
+        return False
+    return _system_feasible(lp)
+
+
+def _account_district(
+    variables: Variables,
+    data: Mapping,
+    diagram: CausalDiagram,
+    district: frozenset[str],
+    assumptions: AssumptionSet,
+) -> tuple[str, str]:
+    """Whether a district the optimized program does not enforce rules the table out.
+
+    ``ok`` — saturated and proper, or covered and the exact linear system is nonempty.
+    ``infeasible`` — no canonical response law reproduces the district's margin.
+    ``unknown`` — the fiber is not a known polytope, or the linear system is too big.
+    A nonempty interval is not a bound on the empty set, so ``unknown`` must not
+    be reported as tight.
+    """
+    from .degree1 import root_private_sides
+    from .graphical_lp import (
+        _hyperedges,
+        is_covered,
+        outside_parents,
+        saturation_status,
+        sufficient_hyperedge,
+    )
+
+    label = sorted(district)
+    hes = _hyperedges(diagram, district)
+    lam = len(hes)
+    status = saturation_status(diagram, district)
+
+    def _proper() -> tuple[str, str]:
+        if _component_factor_proper(variables, data, diagram, district):
+            return ("ok", "")
+        return ("infeasible", f"infeasible: c-factor of {label} is not a function of its parents")
+
+    if lam >= 3 or not is_covered(diagram, district):
+        if lam >= 3 and sufficient_hyperedge(diagram, district) is not None:
+            feas = _sufficient_district_feasible(
+                variables, data, diagram, district, assumptions
+            )
+            if feas is True:
+                return ("ok", "")
+            if feas is False:
+                return (
+                    "infeasible",
+                    f"infeasible: district {label} has no response law for this table",
+                )
+        return (
+            "unknown",
+            f"dropped district {label} is not a known polytope (λ={max(lam, 1)}); "
+            "bounds are an outer approximation",
+        )
+
+    if status == "saturated":
+        return _proper()
+
+    if lam <= 1:
+        feas = _one_edge_feasible(variables, data, diagram, district, assumptions)
+    elif root_private_sides(diagram, district) is not None and not outside_parents(
+        diagram, district
+    ):
+        feas = _lambda2_district_feasible(
+            variables, data, diagram, district, assumptions
+        )
+    else:
+        return (
+            "unknown",
+            f"dropped district {label} is unsaturated and has no feasibility LP; "
+            "bounds are an outer approximation",
+        )
+    if feas is True:
+        return ("ok", "")
+    if feas is False:
+        return (
+            "infeasible",
+            f"infeasible: district {label} has no response law for this table",
+        )
+    return (
+        "unknown",
+        f"dropped district {label} could not be checked; bounds are an outer approximation",
+    )
+
+
+def _screen_dropped_districts(
+    variables: Variables,
+    data: Mapping,
+    diagram: CausalDiagram,
+    *,
+    ancestral: frozenset[str],
+    pre_cut: Sequence[frozenset[str]],
+    free: Sequence[frozenset[str]],
+    assumptions: AssumptionSet,
+) -> tuple[LPData | None, list[str]]:
+    """Infeasible LP if a district the solver will not enforce rules the table out.
+
+    Only districts removed by the ancestral trim, or removed by a directed
+    cut after they were free, are checked. Unconfounded instruments stay in
+    the instrument LP; their joint is not re-tested here.
+    """
+    kept = {frozenset(d) for d in free}
+    pre = {frozenset(d) for d in pre_cut}
+    unknown: list[str] = []
+    for comp in diagram.c_components():
+        trimmed = not set(comp) <= set(ancestral)
+        cut_drop = comp in pre and comp not in kept
+        if not trimmed and not cut_drop:
+            continue
+        status, message = _account_district(variables, data, diagram, comp, assumptions)
+        if status == "ok":
+            continue
+        if status == "infeasible":
+            return _infeasible_lp(variables, [], message), []
+        unknown.append(message)
+    return None, unknown
+
+
+def _formulate_one_block(
+    variables: Variables,
+    data: Mapping,
+    sub_q: Query,
+    diagram: CausalDiagram,
+    district: frozenset[str],
+    assumptions: AssumptionSet | None,
+    notes: list[str],
+) -> LPData | None:
+    """Sharp LP for one leftover district that ``district_is_lp_block`` accepts."""
+    from .degree1 import induced_subgraph, root_private_sides
+    from .graphical_lp import sufficient_hyperedge
+
+    assumptions = as_assumption_set(assumptions)
+    hes = diagram.latent_hyperedges_in(district)
+    if root_private_sides(diagram, district) is not None:
+        if _external_parents(diagram, district):
+            notes.append(
+                f"separable stack: {sorted(district)} has an outside parent; "
+                "λ=2 lift not used"
+            )
+            return None
+        nodes = tuple(n for n in diagram.topological_order() if n in district)
+        lifted = _formulate_lambda2_lift(
+            variables.restrict(nodes),
+            _remargin_data(variables, data, nodes),
+            sub_q,
+            induced_subgraph(diagram, nodes),
+            assumptions,
+            [],
+            district,
+            (),
+        )
+        return lifted
+    if len(hes) <= 1:
+        return _formulate_one_lambda1_block(
+            variables, data, sub_q, diagram, district, assumptions, notes
+        )
+    if sufficient_hyperedge(diagram, district) is not None:
+        return _formulate_sufficient_lemma(
+            variables, data, sub_q, diagram, district, assumptions, notes
+        )
+    return None
+
+
+def _formulate_separable_stack(
+    variables: Variables,
+    data: Mapping,
+    query: Query,
+    diagram: CausalDiagram,
+    free: Sequence[frozenset[str]],
+    assumptions: AssumptionSet | None,
+    notes: list[str],
+) -> LPData | None:
+    """Stacked LP: each atom is a constant or a scale times one LP block."""
+    from .program_degree import _observed_set, split_atom
+    from .query_ast import Atom, Cond, LinComb
+
+    expr = query.expr
+    if expr is None:
+        return None
+    if isinstance(expr, Cond):
+        notes.append("separable stack: Cond not stacked; falling back")
+        return None
+    if not isinstance(expr, LinComb):
+        return None
+
+    observed = _observed_set(diagram, variables)
+    buckets: dict[frozenset[str], list[tuple[float, object]]] = {d: [] for d in free}
+    constant = 0.0
+    assumptions_s = as_assumption_set(assumptions)
+    for coeff, atom in expr.terms:
+        role, district = split_atom(atom, diagram, free, observed)
+        if role == "cross" or (role == "block" and district is None):
+            notes.append("separable stack: an atom is not affine on the leftover districts")
+            return None
+        if role == "const":
+            constant += float(coeff) * _event_mass(variables, data, atom.lits)
+            continue
+        assert district is not None
+        scale_lits = tuple(
+            lit
+            for lit in atom.lits
+            if isinstance(lit.expr, str) and lit.expr not in district
+        )
+        scale = _event_mass(variables, data, scale_lits)
+        kept = Atom(
+            *(
+                lit
+                for lit in atom.lits
+                if not (isinstance(lit.expr, str) and lit.expr not in district)
+            )
+        )
+        buckets[district].append((float(coeff) * scale, kept))
+
+    for district in free:
+        if buckets[district]:
+            continue
+        status, message = _account_district(
+            variables, data, diagram, district, assumptions_s
+        )
+        if status == "infeasible":
+            return _infeasible_lp(variables, notes, message)
+        if status == "unknown":
+            notes.append(message)
+            return None
+
+    blocks: list[LPData] = []
+    for district in free:
+        terms = buckets[district]
+        if not terms:
+            continue
+        sub_q = _block_query(terms)
+        if sub_q is None:
+            notes.append(f"separable stack: could not build query for {sorted(district)}")
+            return None
+        try:
+            built = _formulate_one_block(
+                variables, data, sub_q, diagram, district, assumptions_s, []
+            )
+        except (ValueError, NotImplementedError, RuntimeError) as exc:
+            notes.append(f"separable stack failed on {sorted(district)} ({exc})")
+            return None
+        if built is None:
+            notes.append(f"separable stack: no LP for {sorted(district)}")
+            return None
+        if _lp_is_empty(built):
+            return built
+        blocks.append(built)
+    if not blocks:
+        if not expr.terms:
+            return None
+        lp = _constant_block(constant)
+        lp.notes = list(notes) + list(lp.notes)
+        return lp
+    if abs(constant) > 1e-15:
+        blocks.append(_constant_block(constant))
+    return _stack_lpdata(blocks, notes)
+
+
+def _formulate_sufficient_lemma(
+    variables: Variables,
+    data: Mapping,
+    query: Query,
+    diagram: CausalDiagram,
+    district: frozenset[str],
+    assumptions: AssumptionSet | None,
+    notes: list[str],
+) -> LPData | None:
+    """Sharp LP for the sufficient fiber lemma.
+
+    One hyperedge carries every variable that has a parent. The roots off
+    that hyperedge are exogenous, and roots that lie on different side
+    hyperedges are independent. The resulting program is the instrument LP
+    on the local assignments. It is not the observational conditional: the
+    response of the confounded variables stays joint with the latent they
+    share.
+    """
+    from .graphical_lp import side_root_blocks, sufficient_hyperedge
+    from .instrument import formulate_instrument
+
+    hyperedge = sufficient_hyperedge(diagram, district)
+    if hyperedge is None or query.kind not in ("interventional", "ate"):
+        return None
+    blocks = side_root_blocks(diagram, district, hyperedge)
+    if blocks is None:
+        return None
+    if not _blocks_independent(variables, data, blocks):
+        return _infeasible_lp(
+            variables,
+            notes,
+            "infeasible: side roots do not factor across hyperedges",
+        )
+    on_edge = set(hyperedge)
+    local = tuple(n for n in diagram.topological_order() if n in district and n in on_edge)
+    instruments = tuple(
+        n for n in diagram.topological_order() if n in district and n not in on_edge
+    )
+    if not instruments or query.outcome not in local:
+        return None
+    n_types = 1
+    for v in local:
+        n_types *= _response_count(variables, diagram, v)
+        if n_types > _LAMBDA2_TYPE_CAP:
+            return None
+    nodes = tuple(n for n in diagram.topological_order() if n in district)
+    rewritten = CausalDiagram(
+        nodes=nodes,
+        directed=tuple(
+            (a, b) for a, b in diagram.directed if a in district and b in district
+        ),
+        bidirected=(hyperedge,),
+    )
+    notes.append(
+        f"sufficient fiber lemma: local assignments on {list(hyperedge)}; "
+        f"side roots {list(instruments)} are exogenous"
+    )
+    try:
+        lp = formulate_instrument(
+            variables.restrict(nodes),
+            _remargin_data(variables, data, nodes),
+            query,
+            rewritten,
+            instruments,
+            local,
+            assumptions,
+        )
+    except (ValueError, NotImplementedError, RuntimeError):
+        return None
+    lp.notes = list(notes) + list(lp.notes)
+    lp.outer_approximation = False
+    return lp
+
+
+def _sufficient_district_feasible(
+    variables: Variables,
+    data: Mapping,
+    diagram: CausalDiagram,
+    district: frozenset[str],
+    assumptions: AssumptionSet,
+) -> bool | None:
+    """Feasibility of a sufficient-lemma district, using a dummy intervention."""
+    from .graphical_lp import sufficient_hyperedge
+
+    hyperedge = sufficient_hyperedge(diagram, district)
+    if hyperedge is None:
+        return None
+    outcome = next(
+        (n for n in diagram.topological_order() if n in district and n in set(hyperedge)),
+        None,
+    )
+    if outcome is None:
+        return None
+    q = Query.interventional(outcome=outcome, do={}, value=variables.domains[outcome][0])
+    lp = _formulate_sufficient_lemma(
+        variables, data, q, diagram, district, assumptions, []
+    )
+    if lp is None:
+        return None
+    if _lp_is_empty(lp):
+        return False
+    return _system_feasible(lp)
+
+
+_LAMBDA2_TYPE_CAP = 8192
+
+
+def _response_count(variables: Variables, diagram: CausalDiagram, v: str) -> int:
+    n_in = 1
+    for p in diagram.parents(v):
+        n_in *= len(variables.domains[p])
+    return len(variables.domains[v]) ** max(n_in, 1)
+
+
+def _formulate_lambda2_lift(
+    variables: Variables,
+    data: Mapping,
+    query: Query,
+    diagram: CausalDiagram,
+    assumptions: AssumptionSet,
+    notes: list[str],
+    district: frozenset[str],
+    exo: tuple[str, ...],
+) -> LPData | None:
+    """Sharp LP for one λ=2 c-component with a root private block.
+
+    Decision variables are the joint response types of the c-component. The
+    two latents impose one independence; the root block's law is the observed
+    margin, so the constraint is linear. Returns None when the type space is
+    too large or the query is not supported here (caller uses an outer LP).
+    """
+    from .degree1 import induced_subgraph, root_private_sides
+
+    sides = root_private_sides(diagram, district)
+    if sides is None:
+        return None
+    roots, other = sides
+    observed = set(variables.observed) if variables.observed is not None else set(variables.names)
+    if any(v not in observed for v in roots):
+        return None
+    if exo and not (
+        query.kind in ("interventional", "ate")
+        and _exo_are_markovian_children(diagram, district, exo)
+    ):
+        return None
+    coupling = (
+        assumptions.of_type(FSensitivityAssumption)
+        or assumptions.of_type(SupportBoundAssumption)
+        or assumptions.of_type(IndependenceAssumption)
+    )
+    if coupling:
+        return None
+
+    r_side = tuple(n for n in diagram.topological_order() if n in district)
+    n_types = 1
+    for v in r_side:
+        n_types *= _response_count(variables, diagram, v)
+        if n_types > _LAMBDA2_TYPE_CAP:
+            return None
+
+    an_obs = variables.observed_names(diagram.topological_order())
+    parent_of = {v: tuple(diagram.parents(v)) for v in exo}
+    for v in exo:
+        if v not in an_obs:
+            return None
+        if not pinning_kernel_holds(variables, an_obs, data, diagram, v, parent_of[v]):
+            notes.append(
+                f"pinning failed: P({v} | predecessors) is not P({v} | parents)"
+            )
+            return _infeasible_lp(
+                variables,
+                notes,
+                f"infeasible: unconfounded {v} is not pinned by its parent kernel",
+            )
+    kernels = {
+        v: _empirical_kernel(variables, an_obs, data, v, parent_of[v]) for v in exo
+    }
+
+    data_r = _remargin_data(variables, data, r_side)
+    variables_r = variables.restrict(r_side)
+    diagram_r = induced_subgraph(diagram, r_side)
+    ts = TypeSpace.from_diagram(variables_r, diagram_r)
+    cells, P = _normalize_P(variables_r, variables_r.observed_names(ts.order), data_r)
+    allow = _hard_face_mask(ts, assumptions)
+
+    if exo:
+        from .types_canon import evaluate_world
+
+        c = np.zeros(ts.n_types, dtype=float)
+        if query.kind == "ate":
+            meta = query.meta or {}
+            treatment = str(meta.get("treatment", "X"))
+            t1, t0 = meta.get("t1", 1), meta.get("t0", 0)
+            yv = meta.get("y", query.value)
+            for t in range(ts.n_types):
+                if not allow[t]:
+                    continue
+                w1 = evaluate_world(
+                    ts.order, ts.response_fns, ts.joint_types[t], ts.diagram, {treatment: t1}
+                )
+                w0 = evaluate_world(
+                    ts.order, ts.response_fns, ts.joint_types[t], ts.diagram, {treatment: t0}
+                )
+                c[t] = _outcome_mass_with_kernels(
+                    w1, exo, kernels, parent_of, query.outcome, yv
+                ) - _outcome_mass_with_kernels(
+                    w0, exo, kernels, parent_of, query.outcome, yv
+                )
+        else:
+            interv = dict(query.intervention)
+            for t in range(ts.n_types):
+                if not allow[t]:
+                    continue
+                w = evaluate_world(
+                    ts.order, ts.response_fns, ts.joint_types[t], ts.diagram, interv
+                )
+                c[t] = _outcome_mass_with_kernels(
+                    w, exo, kernels, parent_of, query.outcome, query.value
+                )
+        c_den = None
+        obj_notes: list[str] = []
+    else:
+        c, c_den, obj_notes = _build_objective(ts, query, allow, cells=cells, P_vec=P)
+
+    n = ts.n_types
+    eq_rows = []
+    eq_rhs = []
+    for i, cell in enumerate(cells):
+        row = np.zeros(n)
+        for ti in ts.fiber.get(cell, ()):
+            if allow[ti]:
+                row[ti] = 1.0
+        eq_rows.append(row)
+        eq_rhs.append(float(P[i]))
+
+    # sum_{r12} μ(r_root, r12, r_other) = P(roots) * sum_{r_root'} μ(...)
+    idx = {v: i for i, v in enumerate(ts.order)}
+    root_t = tuple(v for v in ts.order if v in roots)
+    other_t = tuple(v for v in ts.order if v in other)
+    obs = variables_r.observed_names(ts.order)
+    obs_idx = {name: i for i, name in enumerate(obs)}
+    margin: dict[tuple, float] = {}
+    for cell, mass in zip(cells, P):
+        key = tuple(cell[obs_idx[v]] for v in root_t)
+        margin[key] = margin.get(key, 0.0) + float(mass)
+    grouped: dict[tuple, list[int]] = {}
+    by_other: dict[tuple, list[int]] = {}
+    for t, jt in enumerate(ts.joint_types):
+        rk = tuple(variables_r.domains[v][jt[idx[v]]] for v in root_t)
+        ok = tuple(jt[idx[v]] for v in other_t)
+        grouped.setdefault((rk, ok), []).append(t)
+        by_other.setdefault(ok, []).append(t)
+    for (rk, ok), members in grouped.items():
+        row = np.zeros(n)
+        p_root = margin.get(rk, 0.0)
+        for t in members:
+            row[t] += 1.0
+        for t in by_other[ok]:
+            row[t] -= p_root
+        eq_rows.append(row)
+        eq_rhs.append(0.0)
+
+    notes.append(
+        "λ=2 root-block lift: joint response types with linear independence "
+        f"(roots {list(root_t)})"
+    )
+    notes.extend(obj_notes)
+
+    ub_rows: list[np.ndarray] = []
+    ub_rhs: list[float] = []
+    sens = (
+        list(assumptions.of_type(TanMSMAssumption))
+        + list(assumptions.of_type(CDependenceAssumption))
+        + list(assumptions.of_type(RosenbaumAssumption))
+    )
+    if sens:
+        from .sensitivity_budgets import (
+            build_pi0_for_treatment,
+            cdep_linf_rows,
+            msm_lr_rows,
+        )
+
+        treatment = sens[0].treatment
+        if treatment not in ts.order:
+            return None
+        pi0 = build_pi0_for_treatment(ts, cells, P, treatment)
+        for a in assumptions.of_type(TanMSMAssumption):
+            if not a.anchored:
+                return None
+            rows, rhs = msm_lr_rows(ts, allow, a.treatment, a.Lambda, pi0)
+            ub_rows.extend(rows)
+            ub_rhs.extend(rhs)
+        for a in assumptions.of_type(RosenbaumAssumption):
+            rows, rhs = msm_lr_rows(ts, allow, a.treatment, float(np.sqrt(a.Gamma)), pi0)
+            ub_rows.extend(rows)
+            ub_rhs.extend(rhs)
+        for a in assumptions.of_type(CDependenceAssumption):
+            rows, rhs = cdep_linf_rows(ts, allow, a.treatment, a.c, pi0)
+            ub_rows.extend(rows)
+            ub_rhs.extend(rhs)
+    for a in assumptions.of_type(MTSAssumption):
+        rows, rhs = _mts_rows(ts, allow, cells, P, a.treatment, a.outcome, a.direction)
+        ub_rows.extend(rows)
+        ub_rhs.extend(rhs)
+    for a in assumptions.of_type(MarginBudgetAssumption):
+        return None
+
+    A_ub = sparse.csr_matrix(np.vstack(ub_rows)) if ub_rows else None
+    b_ub = np.asarray(ub_rhs, dtype=float) if ub_rows else None
+    if c_den is not None:
+        method = "fractional"
+    elif A_ub is not None:
+        method = "lp"
+    else:
+        method = "lp"
+    return LPData(
+        c=c,
+        A_eq=sparse.csr_matrix(np.vstack(eq_rows)),
+        b_eq=np.asarray(eq_rhs, dtype=float),
+        A_ub=A_ub,
+        b_ub=b_ub,
+        type_space=ts,
+        allowed_types=allow,
+        cells=list(cells),
+        P_vec=P,
+        method_hint=method,
+        notes=notes,
+        c_den=c_den,
+        outer_approximation=False,
+    )
+
+
 def formulate(
     variables: Variables,
     data: Mapping,
@@ -455,6 +1497,14 @@ def formulate(
 
     assumptions = as_assumption_set(assumptions)
     notes: list[str] = []
+    uncertified: list[str] = []
+
+    def _seal(lp: LPData) -> LPData:
+        if uncertified and not _lp_is_empty(lp):
+            lp.notes = list(lp.notes) + list(uncertified)
+            lp.outer_approximation = True
+        return lp
+
     if not optimize:
         notes.append("naive: no inert prune, no instrument R-side LP")
 
@@ -485,7 +1535,13 @@ def formulate(
     # (THEORY_PROGRAM_DEGREE §6).
     if optimize and query.expr is not None:
         from .degree1 import analyze_degree1, induced_subgraph
+        from .graphical_lp import sufficient_hyperedge, without_contained_hyperedges
         from .program_degree import ProgramKind, classify_program
+
+        reduced = without_contained_hyperedges(diagram)
+        if reduced is not diagram:
+            diagram = reduced
+            notes.append("contained hyperedges deleted before counting λ")
         from .query_ast import Cond as _Cond
         from .query_ast import LinComb as _LinComb
         from .query_compile import gpp_expr_supported
@@ -509,9 +1565,25 @@ def formulate(
             [
                 n
                 for n in prog.notes
-                if n.startswith("program:") or n.startswith("C2 ") or n.startswith("out of (H)")
+                if n.startswith("program:")
+                or n.startswith("C2 ")
+                or n.startswith("out of (H)")
+                or n.startswith("contained ")
             ]
         )
+        if not outer:
+            empty, unknown = _screen_dropped_districts(
+                variables,
+                data,
+                diagram,
+                ancestral=fac.ancestral,
+                pre_cut=prog.pre_cut_free_districts,
+                free=prog.free_districts,
+                assumptions=assumptions,
+            )
+            if empty is not None:
+                return empty
+            uncertified.extend(unknown)
 
         def _gpp_query_ok(diag: CausalDiagram, vars_: Variables, data_: Mapping) -> bool:
             if isinstance(query.expr, _LinComb):
@@ -568,6 +1640,21 @@ def formulate(
         free = prog.free_districts
 
         if prog.kind == ProgramKind.LINEAR:
+            if len(free) >= 2:
+                _restrict_ancestral()
+                stacked = _formulate_separable_stack(
+                    variables, data, query, diagram, free, assumptions, notes
+                )
+                if stacked is not None:
+                    if _lp_is_empty(stacked):
+                        return stacked
+                    stacked.outer_approximation = False
+                    return _seal(stacked)
+                notes.append(
+                    "separable LINEAR K≥2 but stacked LP unavailable; "
+                    "falling through (may merge districts)"
+                )
+
             # Prefer recorded C2 cut → instrument LP (same as early Prop. 8.4 path)
             if prog.wl_wr_cut is not None and query.kind in ("interventional", "ate"):
                 _restrict_ancestral()
@@ -580,7 +1667,7 @@ def formulate(
                 )
                 lp.notes = notes + lp.notes
                 lp.outer_approximation = False
-                return lp
+                return _seal(lp)
 
             if len(free) == 1:
                 D = free[0]
@@ -594,7 +1681,35 @@ def formulate(
                     diagram = induced_subgraph(diagram, an_order)
                     notes.append(f"restricted to ancestral {list(an_order)}")
 
-                if exo:
+                from .degree1 import root_private_sides
+
+                if root_private_sides(diagram, D) is not None:
+                    lifted = _formulate_lambda2_lift(
+                        variables, data, query, diagram, assumptions, notes, frozenset(D), exo
+                    )
+                    if lifted is not None:
+                        return lifted if _lp_is_empty(lifted) else _seal(lifted)
+                    _merged_outer(
+                        "λ=2 root-block LP unavailable; "
+                        "using merged-latent outer LP (valid, may be conservative)."
+                    )
+                elif (
+                    sufficient_hyperedge(diagram, D) is not None
+                    and len(diagram.latent_hyperedges_in(D)) > 1
+                ):
+                    built = _formulate_sufficient_lemma(
+                        variables, data, query, diagram, frozenset(D), assumptions, notes
+                    )
+                    if built is None:
+                        _merged_outer(
+                            "sufficient-lemma LP unavailable; "
+                            "using merged-latent outer LP (valid, may be conservative)."
+                        )
+                    elif _lp_is_empty(built):
+                        return built
+                    else:
+                        return _seal(built)
+                elif exo:
                     if query.kind in ("interventional", "ate") and _exo_are_markovian_children(
                         diagram, frozenset(D), exo
                     ):
@@ -602,6 +1717,19 @@ def formulate(
 
                         an_obs = variables.observed_names(an_order)
                         parent_of = {v: tuple(diagram.parents(v)) for v in exo}
+                        for v in exo:
+                            if v in an_obs and not pinning_kernel_holds(
+                                variables, an_obs, data, diagram, v, parent_of[v]
+                            ):
+                                notes.append(
+                                    f"pinning failed: P({v} | predecessors) is not "
+                                    f"P({v} | parents)"
+                                )
+                                return _infeasible_lp(
+                                    variables,
+                                    notes,
+                                    f"infeasible: unconfounded {v} is not pinned by its parent kernel",
+                                )
                         kernels = {
                             v: _empirical_kernel(variables, an_obs, data, v, parent_of[v])
                             for v in exo
@@ -674,19 +1802,21 @@ def formulate(
                                     row[ti] = 1.0
                             eq_rows.append(row)
                             eq_rhs.append(P[i])
-                        return LPData(
-                            c=c,
-                            A_eq=sparse.csr_matrix(np.vstack(eq_rows)),
-                            b_eq=np.asarray(eq_rhs, dtype=float),
-                            A_ub=None,
-                            b_ub=None,
-                            type_space=ts,
-                            allowed_types=allow,
-                            cells=cells,
-                            P_vec=P,
-                            method_hint="fiber",
-                            notes=notes,
-                            outer_approximation=False,
+                        return _seal(
+                            LPData(
+                                c=c,
+                                A_eq=sparse.csr_matrix(np.vstack(eq_rows)),
+                                b_eq=np.asarray(eq_rhs, dtype=float),
+                                A_ub=None,
+                                b_ub=None,
+                                type_space=ts,
+                                allowed_types=allow,
+                                cells=cells,
+                                P_vec=P,
+                                method_hint="fiber",
+                                notes=notes,
+                                outer_approximation=False,
+                            )
                         )
 
                     notes.append(
@@ -704,12 +1834,8 @@ def formulate(
                     # fall through with restricted diagram
 
         elif prog.kind == ProgramKind.POINT:
-            an_order = tuple(n for n in diagram.topological_order() if n in fac.ancestral)
-            if set(an_order) != set(diagram.nodes):
-                diagram = induced_subgraph(diagram, an_order)
-                notes.append(
-                    f"POINT: no free district; restricted ancestral {list(an_order)} (no merge)"
-                )
+            _restrict_ancestral()
+            notes.append("POINT: no free district; ancestral table remargined")
 
         elif prog.kind == ProgramKind.BILINEAR_LATENT and prefer_gpp:
             from .latent_bilinear import build_latent_bilinear
@@ -727,7 +1853,7 @@ def formulate(
                 gpp = build_latent_bilinear(
                     variables, data, query, diagram, frozenset(D), notes=notes
                 )
-                return _gpp_stub(gpp, hint="gpp/latent")
+                return _seal(_gpp_stub(gpp, hint="gpp/latent"))
             except (ValueError, NotImplementedError, RuntimeError) as exc:
                 _merged_outer(
                     f"latent bilinear unavailable ({exc}); "
@@ -764,7 +1890,7 @@ def formulate(
                     gpp.notes = list(gpp.notes) + [
                         "GPP Cond: fixed observational denominator (Tian–Pearl PN/PS linearization)"
                     ]
-                return _gpp_stub(gpp, hint="gpp")
+                return _seal(_gpp_stub(gpp, hint="gpp"))
             except (ValueError, NotImplementedError, RuntimeError) as exc:
                 _merged_outer(
                     f"bilinear/factor GPP unavailable ({exc}); "
@@ -791,7 +1917,7 @@ def formulate(
                             variables, data, query, diagram, free, notes=notes
                         )
                         poly_built = True
-                        return _gpp_stub(poly, hint="gpp/poly")
+                        return _seal(_gpp_stub(poly, hint="gpp/poly"))
                     # Latent-polynomial (λ≥3): size gate almost always fails;
                     # leave an explicit note and fall through to outer.
                     raise ValueError(
@@ -969,7 +2095,8 @@ def formulate(
     else:
         method = "lp"
 
-    return LPData(
+    return _seal(
+        LPData(
         c=c,
         A_eq=A_eq,
         b_eq=b_eq,
@@ -988,6 +2115,7 @@ def formulate(
         c_den=c_den,
         outer_approximation=outer,
         gpp=None,
+        )
     )
 
 

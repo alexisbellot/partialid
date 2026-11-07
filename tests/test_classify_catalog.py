@@ -301,7 +301,7 @@ def test_catalog_L10_faces_do_not_change_kind():
             "B1",
             g_pair_chain(),
             _Q_do(),
-            ProgramKind.BILINEAR_LATENT,
+            ProgramKind.LINEAR,
             2,
             [["W", "X", "Y"]],
         ),
@@ -325,7 +325,7 @@ def test_catalog_L10_faces_do_not_change_kind():
             "B5",
             g_pair_chain(),
             Query.pns(treatment="X", outcome="Y"),
-            ProgramKind.BILINEAR_LATENT,
+            ProgramKind.LINEAR,
             2,
             [["W", "X", "Y"]],
         ),
@@ -406,22 +406,53 @@ def test_catalog_Q2_iv_pn_stays_linear():
     )
 
 
-def test_catalog_Q3_multi_regime_footprint():
-    """Multi-regime LinComb: free blocks follow the footprint (not outcome default)."""
-    g = CausalDiagram.from_edges(
-        ["Z", "X", "W", "Y"],
-        directed=[("Z", "X"), ("X", "Y"), ("Z", "W")],
+def g_additive_bows():
+    """Two λ=1 bows on a chain: X→Y→Z→W with X↔Y and Z↔W."""
+    return CausalDiagram.from_edges(
+        ["X", "Y", "Z", "W"],
+        directed=[("X", "Y"), ("Y", "Z"), ("Z", "W")],
         bidirected=[("X", "Y"), ("Z", "W")],
     )
+
+
+def _Q_additive_yw() -> Query:
     expr = LinComb.atom(Atom(Lit(PO("Y", {"X": 1}), 1))) + LinComb.atom(
         Atom(Lit(PO("W", {"Z": 1}), 1))
     )
+    return Query.from_expr(expr, outcome="Y", value=1)
+
+
+def test_catalog_Q3_additive_two_bows_is_linear():
+    """Each atom on one λ=1 district → leftover maps affine → LP (not bilinear)."""
+    g = g_additive_bows()
+    Q = _Q_additive_yw()
+    prog = classify_program(g, query=Q)
+    assert prog.kind == ProgramKind.LINEAR
+    assert prog.degree == 2
+    assert _free_sorted(prog) == [["W", "Z"], ["X", "Y"]]
+    assert any("separable" in n for n in prog.notes)
+
+
+def test_catalog_P_Yx_hits_parent_district_is_bilinear():
+    """Syntactic {X,Y} is not enough: Y_x uses parent districts structurally."""
+    g = CausalDiagram.from_edges(
+        ["X", "U", "V", "Y"],
+        directed=[("X", "Y"), ("U", "Y"), ("V", "Y"), ("X", "U")],
+        bidirected=[("X", "Y"), ("U", "V")],
+    )
+    prog = classify_program(g, query=_Q_do())
+    assert prog.kind == ProgramKind.BILINEAR_FACTOR
+    assert prog.degree == 2
+
+
+def test_catalog_Q3_conjunction_stays_bilinear():
+    """One atom using both bows is coupled (not an LP)."""
+    g = g_additive_bows()
+    expr = LinComb.atom(Atom(Lit(PO("Y", {"X": 1}), 1), Lit(PO("W", {"Z": 1}), 1)))
     Q = Query.from_expr(expr, outcome="Y", value=1)
     prog = classify_program(g, query=Q)
-    free = _free_sorted(prog)
-    # Both confounded districts meet the multi-regime footprint
-    assert ["W", "Z"] in free or ["X", "Y"] in free
-    assert prog.degree >= 1
+    assert prog.kind == ProgramKind.BILINEAR_FACTOR
+    assert prog.degree == 2
 
 
 # ---------------------------------------------------------------------------
@@ -434,9 +465,10 @@ def test_catalog_Q3_multi_regime_footprint():
     [
         ("L4", g_extended_iv(), _Q_do(), "lp"),
         ("L3", g_iv(), _Q_do(), "lp"),
-        ("B1", g_pair_chain(), _Q_do(), "gpp/latent"),
+        ("B1", g_pair_chain(), _Q_do(), "lp"),
         ("B2", g_mediated(), Query.pns(treatment="X", outcome="Y"), "gpp"),
         ("B3", g_two_bows(), _Q_do(), "gpp"),
+        ("Q3", g_additive_bows(), _Q_additive_yw(), "lp"),
     ],
 )
 def test_catalog_formulate_hint_matches_kind(case_id, graph, query, expect_hint):
@@ -450,6 +482,53 @@ def test_catalog_formulate_hint_matches_kind(case_id, graph, query, expect_hint)
     if expect_hint == "lp":
         assert lp.gpp is None
         assert not lp.outer_approximation
+
+
+def test_catalog_additive_bows_stacked_lp_matches_sum():
+    """Disconnected bows: stacked LP equals the sum of the two one-bow LPs."""
+    g = CausalDiagram.from_edges(
+        ["X", "Y", "Z", "W"],
+        directed=[("X", "Y"), ("Z", "W")],
+        bidirected=[("X", "Y"), ("Z", "W")],
+    )
+    Q = _Q_additive_yw()
+    assert classify_program(g, query=Q).kind == ProgramKind.LINEAR
+    V = Variables.from_binary(*g.topological_order())
+    P = _softmax_P(V, seed=3)
+    a = Assumptions.from_diagram(g)
+    lp = formulate(V, P, Q, a)
+    assert lp.method_hint == "lp"
+    assert not lp.outer_approximation
+    assert any("stacked" in n for n in lp.notes)
+    r = bound(V, P, Q, a)
+    assert r.success and r.tight
+    assert r.method in ("lp", "dual")
+
+    order = list(V.names)
+    g_xy = CausalDiagram.from_edges(["X", "Y"], directed=[("X", "Y")], bidirected=[("X", "Y")])
+    g_zw = CausalDiagram.from_edges(["Z", "W"], directed=[("Z", "W")], bidirected=[("Z", "W")])
+    Vxy, Vzw = Variables.from_binary("X", "Y"), Variables.from_binary("Z", "W")
+    Pxy: dict[tuple, float] = {k: 0.0 for k in Vxy.cells()}
+    Pzw: dict[tuple, float] = {k: 0.0 for k in Vzw.cells()}
+    for cell, p in P.items():
+        d = dict(zip(order, cell))
+        Pxy[(d["X"], d["Y"])] = Pxy.get((d["X"], d["Y"]), 0.0) + float(p)
+        Pzw[(d["Z"], d["W"])] = Pzw.get((d["Z"], d["W"]), 0.0) + float(p)
+    r_xy = bound(
+        Vxy,
+        Pxy,
+        Query.interventional(outcome="Y", do={"X": 1}, value=1),
+        Assumptions.from_diagram(g_xy),
+    )
+    r_zw = bound(
+        Vzw,
+        Pzw,
+        Query.interventional(outcome="W", do={"Z": 1}, value=1),
+        Assumptions.from_diagram(g_zw),
+    )
+    assert r_xy.tight and r_zw.tight
+    assert abs(r.lower - (r_xy.lower + r_zw.lower)) < 1e-6
+    assert abs(r.upper - (r_xy.upper + r_zw.upper)) < 1e-6
 
 
 def test_catalog_extended_iv_no_gpp_split_brain():
@@ -466,17 +545,18 @@ def test_catalog_extended_iv_no_gpp_split_brain():
     assert lp.gpp is None
 
 
-def test_catalog_pair_chain_bound_gpp_latent():
+def test_catalog_pair_chain_bound_is_lp():
     g = g_pair_chain()
     V = Variables.from_binary(*g.topological_order())
     P = _softmax_P(V, seed=1)  # same seed as latent_hyperedges sharp test
     Q = _Q_do()
     prog = classify_program(g, query=Q)
-    assert prog.kind == ProgramKind.BILINEAR_LATENT
+    assert prog.kind == ProgramKind.LINEAR
     lp = formulate(V, P, Q, Assumptions.from_diagram(g))
-    assert lp.method_hint == "gpp/latent"
+    assert lp.method_hint == "lp"
+    assert any("root-block lift" in n for n in lp.notes)
     r = bound(V, P, Q, Assumptions.from_diagram(g))
-    assert r.method == "gpp/latent"
+    assert r.method == "lp"
     assert r.success
     assert r.tight
 

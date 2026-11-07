@@ -28,6 +28,52 @@ def directed_ancestors(g: CausalDiagram, seeds: Iterable[str]) -> set[str]:
     return an
 
 
+def c_component_closure(g: CausalDiagram, seeds: Iterable[str]) -> set[str]:
+    """Smallest set containing ``seeds`` and closed under ancestors and c-components.
+
+    A non-ancestor that shares a latent with an ancestor can constrain that
+    latent. Dropping it is a valid outer bound and can be strictly loose, so
+    the sharp program keeps the whole c-component.
+    """
+    keep = directed_ancestors(g, seeds)
+    changed = True
+    while changed:
+        changed = False
+        for comp in g.c_components():
+            if keep & comp and not comp <= keep:
+                keep |= directed_ancestors(g, keep | set(comp))
+                changed = True
+    return keep
+
+
+def root_private_sides(
+    g: CausalDiagram, district: Iterable[str]
+) -> tuple[frozenset[str], frozenset[str]] | None:
+    """For a λ=2 c-component, ``(roots, other)`` when one private block is all roots.
+
+    Private block of a hyperedge: variables in that hyperedge and not the other.
+    Returns None unless there are exactly two hyperedges and one private block
+    consists entirely of roots (no parents). The law of that block is then an
+    observed margin, and the latent independence is a linear constraint.
+    """
+    hes = g.latent_hyperedges_in(district)
+    if len(hes) != 2:
+        return None
+    h1, h2 = set(hes[0]), set(hes[1])
+    priv1, priv2 = h1 - h2, h2 - h1
+    if not priv1 or not priv2:
+        return None
+
+    def _roots(side: set[str]) -> bool:
+        return all(not g.parents(v) for v in side)
+
+    if _roots(priv1):
+        return frozenset(priv1), frozenset(priv2)
+    if _roots(priv2):
+        return frozenset(priv2), frozenset(priv1)
+    return None
+
+
 def induced_subgraph(g: CausalDiagram, nodes: Iterable[str]) -> CausalDiagram:
     keep = set(nodes)
     return CausalDiagram(
@@ -113,6 +159,13 @@ def analyze_degree1(
                     "for latent endogenous / measurement error"
                 )
             ancestral |= keep_obs
+    closed = c_component_closure(g, ancestral)
+    if closed != ancestral:
+        notes.append(
+            f"c-component closure kept {sorted(closed - ancestral)} "
+            "(share a latent with the ancestral set)"
+        )
+        ancestral = closed
     notes.append(f"ancestral={sorted(ancestral)}")
 
     g_an = induced_subgraph(g, ancestral)

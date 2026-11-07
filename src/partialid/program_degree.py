@@ -1,7 +1,8 @@
 """Classify diagrams by partial-ID program degree (THEORY_PROGRAM_DEGREE §6).
 
-Under hypothesis (H) — ADMG, hyperedge product, face/LIN assumptions,
-LIN/FIXDEN queries — ``Classify`` is:
+Sufficient leftover-LP certificate (not claimed complete). Under
+ADMG / hyperedge product / face-or-LIN assumptions / LIN-or-FIXDEN
+queries, ``Classify`` is:
 
 1. ancestral trim + footprint free blocks (C1: single-world unconfounded
    districts are not free unless cross-world);
@@ -9,8 +10,12 @@ LIN/FIXDEN queries — ``Classify`` is:
    wholly on the I-side;
 3. if Shpitser–Pearl ID succeeds for an interventional (or ATE) query,
    ``F ← ∅`` → POINT;
-4. else ``degree = ∑ λ`` over surviving free blocks → LINEAR / BILINEAR_* /
-   POLYNOMIAL.
+4. leftover maps are linear → LINEAR, even if ``K≥2`` (stacked LP). A
+   district is an LP block when it is unconfounded or ``λ=1``, when it is
+   ``λ=2`` with a root private block, or when the sufficient fiber lemma
+   applies. An atom may name several blocks when every block but one is a
+   factual factor whose variables are not downstream of the remaining block;
+5. else ``degree = ∑ λ`` → BILINEAR_* / POLYNOMIAL.
 
 Worked examples (query ``Q = P(Y=y | do(X=x))`` unless noted)
 --------------------------------------------------------------
@@ -22,11 +27,15 @@ Worked examples (query ``Q = P(Y=y | do(X=x))`` unless noted)
 (``Z`` absorbed). **Linear**.
 
 **E3. Pair chain.** ``X→M→Y``, hyperedges ``[("X","M"),("M","Y")]``.
-**Bilinear/latent** (degree 2).
+**Linear** (degree 2): one private block is the root ``X``, so the latent
+independence is linear in the joint response-type law.
 
 **E4. Triple hyperedge.** One latent on ``{X,M,Y}``. **Linear**.
 
-**E5. Two separate confounded pairs** (both free, no cut). **Bilinear/factor**.
+**E5. Two separate confounded pairs**, one atom using both counterfactuals
+(e.g. ``P(Y_x, W_z)``). **Bilinear/factor**. Additive ``P(Y_x)+P(W_z)``, and a
+product ``P(Y=y, W_z)`` whose factual factor is not downstream of the other
+bow, are **Linear** (stacked LP, the factual factor a scale).
 
 **E6. Triangle.** Three pairwise hyperedges. **Polynomial** (degree 3),
 out of (H) ``λ≤2``.
@@ -147,6 +156,256 @@ def _apply_directed_cuts(
     return free, recorded
 
 
+def _ancestors_after_do(
+    diagram: CausalDiagram, seeds: Sequence[str], intervened: Sequence[str]
+) -> set[str]:
+    """Directed ancestors of ``seeds`` in ``G`` with arrows into ``intervened`` removed."""
+    inter = set(intervened)
+    an = set(seeds)
+    changed = True
+    while changed:
+        changed = False
+        for a, b in diagram.directed:
+            if b in inter:
+                continue
+            if b in an and a not in an:
+                an.add(a)
+                changed = True
+    return an
+
+
+def _atom_mentioned_vars(atom: object) -> set[str]:
+    """Variables named in an AST atom (factual or nested PO)."""
+    from .query_ast import PO
+    from .query_footprint import _walk_po_vars
+
+    mentioned: set[str] = set()
+    for lit in getattr(atom, "lits", ()):
+        expr = lit.expr
+        if isinstance(expr, str):
+            mentioned.add(expr)
+        elif isinstance(expr, PO):
+            _walk_po_vars(expr, mentioned, set())
+    return mentioned
+
+
+def _po_structural_vars(diagram: CausalDiagram, po: object) -> set[str]:
+    """Nodes that enter a potential outcome after ``do`` on its assignment."""
+    from .query_ast import PO
+
+    assert isinstance(po, PO)
+    mentioned: set[str] = set()
+
+    def rec(p: PO) -> None:
+        inter: list[str] = []
+        for k, v in p.assignment.items():
+            inter.append(k)
+            if isinstance(v, PO):
+                rec(v)
+        mentioned.update(_ancestors_after_do(diagram, (p.var,), inter))
+        mentioned.update(inter)
+
+    rec(po)
+    return mentioned
+
+
+def _atom_structural_vars(atom: object, diagram: CausalDiagram | None) -> set[str]:
+    """Structural footprint of an atom (mutilated ancestors), else AST names."""
+    from .query_ast import PO
+
+    if diagram is None:
+        return _atom_mentioned_vars(atom)
+    mentioned: set[str] = set()
+    for lit in getattr(atom, "lits", ()):
+        expr = lit.expr
+        if isinstance(expr, str):
+            mentioned.add(expr)
+        elif isinstance(expr, PO):
+            mentioned |= _po_structural_vars(diagram, expr)
+    return mentioned
+
+
+def _atom_free_districts(
+    mentioned: set[str], free: Sequence[frozenset[str]]
+) -> list[frozenset[str]]:
+    return [d for d in free if mentioned & d]
+
+
+def _observed_set(diagram: CausalDiagram, variables: object | None) -> set[str]:
+    if variables is None:
+        return set(diagram.nodes)
+    obs = getattr(variables, "observed", None)
+    if obs is None:
+        return set(getattr(variables, "names", diagram.nodes))
+    return set(obs)
+
+
+def _district_downstream(diagram: CausalDiagram, district: frozenset[str], target: str) -> bool:
+    """True when ``target`` is in ``district`` or a directed descendant of it."""
+    if target in district:
+        return True
+    seen: set[str] = set()
+    stack = [v for v in district]
+    children: dict[str, list[str]] = {}
+    for a, b in diagram.directed:
+        children.setdefault(a, []).append(b)
+    while stack:
+        n = stack.pop()
+        if n in seen:
+            continue
+        seen.add(n)
+        for c in children.get(n, ()):
+            if c == target:
+                return True
+            stack.append(c)
+    return False
+
+
+def district_is_lp_block(diagram: CausalDiagram, district: frozenset[str]) -> bool:
+    """True when this district's fiber is a polytope the solver can build.
+
+    Unconfounded or one hyperedge, two hyperedges with a root private block,
+    or the sufficient fiber lemma (including a star of instruments into one
+    confounded variable).
+    """
+    from .degree1 import root_private_sides
+    from .graphical_lp import sufficient_hyperedge
+
+    hes = diagram.latent_hyperedges_in(district)
+    if len(hes) <= 1:
+        return True
+    if len(hes) == 2 and root_private_sides(diagram, district) is not None:
+        return True
+    return sufficient_hyperedge(diagram, district) is not None
+
+
+def split_atom(
+    atom: object,
+    diagram: CausalDiagram,
+    free: Sequence[frozenset[str]],
+    observed: set[str],
+) -> tuple[str, frozenset[str] | None]:
+    """How one atom sits on the leftover districts.
+
+    ``("const", None)`` — every literal is factual. The probability is an
+    additive constant read from ``P``.
+    ``("block", district)`` — one counterfactual district, and every factual
+    literal is either outside the free districts or in a district that does
+    not lie downstream of it. Those factual literals scale that block.
+    ``("cross", None)`` — two counterfactual districts, including a parent
+    district that still affects the potential outcome, or a factual factor
+    downstream of the counterfactual district. A factual literal in the
+    same district stays inside the event.
+    """
+    from .query_ast import PO
+
+    free_of = {v: d for d in free for v in d}
+    cf: list[frozenset[str]] = []
+    factual_districts: set[frozenset[str]] = set()
+    for lit in getattr(atom, "lits", ()):
+        expr = lit.expr
+        if isinstance(expr, str):
+            if expr not in observed:
+                return ("cross", None)
+            d = free_of.get(expr)
+            if d is not None:
+                factual_districts.add(d)
+            continue
+        if not isinstance(expr, PO):
+            return ("cross", None)
+        # Ancestors in the mutilated graph, not only the names in the atom.
+        # A parent district that still affects the potential outcome is part
+        # of the event, even when the atom never writes its name.
+        named = _po_structural_vars(diagram, expr)
+        touched: list[frozenset[str]] = []
+        for v in named:
+            d = free_of.get(v)
+            if d is not None and d not in touched:
+                touched.append(d)
+        if len(touched) != 1:
+            return ("cross", None)
+        cf.append(touched[0])
+    unique_cf: list[frozenset[str]] = []
+    for d in cf:
+        if d not in unique_cf:
+            unique_cf.append(d)
+    if len(unique_cf) > 1:
+        return ("cross", None)
+    if not unique_cf:
+        if any(not isinstance(lit.expr, str) for lit in getattr(atom, "lits", ())):
+            return ("cross", None)
+        return ("const", None)
+    district = unique_cf[0]
+    # A factual literal in the same district stays inside the event
+    # (PN/PS). A factual literal in another district is a scale, unless
+    # that district sits downstream of this one.
+    for d in factual_districts:
+        if d == district:
+            continue
+        for v in d:
+            if _district_downstream(diagram, district, v):
+                return ("cross", None)
+    return ("block", district)
+
+
+def leftover_maps_are_linear(
+    free: Sequence[frozenset[str]],
+    degrees: Sequence[int],
+    *,
+    query: Query | None,
+    treatments: Sequence[str] | None,
+    outcome: str | None,
+    diagram: CausalDiagram | None = None,
+    variables: object | None = None,
+) -> bool:
+    """True when leftover maps are affine in the leftover type masses.
+
+    Every leftover district must be an LP block (see ``district_is_lp_block``).
+    Each atom is then either a factual constant or a scale times one block.
+    A product of two counterfactual events on different blocks is not affine.
+    """
+    if not free:
+        return True
+    if diagram is None or any(
+        not district_is_lp_block(diagram, d) for d in free
+    ):
+        # ``degrees`` still gates the no-diagram fallback used by older callers.
+        if diagram is not None or any(int(deg) != 1 for deg in degrees):
+            return False
+
+    def _fallback_vars() -> set[str]:
+        mentioned = set(treatments or ())
+        if outcome:
+            mentioned.add(outcome)
+        if diagram is not None and outcome:
+            mentioned |= _ancestors_after_do(diagram, (outcome,), list(treatments or ()))
+        return mentioned
+
+    if query is None or query.expr is None or diagram is None:
+        return len(_atom_free_districts(_fallback_vars(), free)) <= 1
+
+    from .query_ast import Cond, LinComb
+    from .query_footprint import _denom_is_observational
+
+    expr = query.expr
+    atoms: list[object] = []
+    if isinstance(expr, Cond):
+        atoms.extend(expr.numer.iter_atoms())
+        if not _denom_is_observational(expr.denom):
+            atoms.extend(expr.denom.iter_atoms())
+    elif isinstance(expr, LinComb):
+        atoms.extend(expr.iter_atoms())
+    else:
+        return len(_atom_free_districts(_fallback_vars(), free)) <= 1
+
+    observed = _observed_set(diagram, variables)
+    for atom in atoms:
+        role, _district = split_atom(atom, diagram, free, observed)
+        if role == "cross":
+            return False
+    return True
+
+
 def classify_program(
     diagram: CausalDiagram,
     *,
@@ -163,6 +422,14 @@ def classify_program(
     (kept for API compatibility); directed cuts are applied automatically.
     """
     del has_wl_wr_cut  # cut detection is internal (C2)
+
+    from .graphical_lp import without_contained_hyperedges
+
+    reduced = without_contained_hyperedges(diagram)
+    contained_note: str | None = None
+    if reduced is not diagram:
+        diagram = reduced
+        contained_note = "contained hyperedges deleted before counting λ"
 
     if query is not None:
         fac = analyze_degree1(
@@ -184,6 +451,8 @@ def classify_program(
         fac = analyze_degree1(diagram, treatments=treatments, outcome=outcome)
 
     notes = list(fac.notes)
+    if contained_note is not None:
+        notes.append(contained_note)
     g_an = induced_subgraph(diagram, fac.ancestral)
     pre_cut = tuple(fac.free_districts)
     free_list = list(pre_cut)
@@ -260,14 +529,29 @@ def classify_program(
 
     degree = int(sum(degrees))
     k = len(free)
+    uncoupled = leftover_maps_are_linear(
+        free,
+        degrees,
+        query=query,
+        treatments=treatments,
+        outcome=outcome,
+        diagram=g_an,
+        variables=variables,
+    )
 
-    if degree <= 1:
+    if uncoupled:
         tag = "linear"
-        if cut is not None:
+        if any(int(d) >= 3 for d in degrees):
+            tag = "linear (sufficient fiber lemma)"
+        elif any(int(d) == 2 for d in degrees):
+            tag = "linear (λ=2 root private block; independence is linear)"
+        if k >= 2:
+            tag = f"linear (separable K={k}; stacked LP)"
+        elif cut is not None:
             tag += " (after C2 directed cut)" if pre_cut != free else " (WL–WR cut present)"
         return ProgramDegree(
             kind=ProgramKind.LINEAR,
-            degree=1,
+            degree=degree if degree > 0 else 1,
             free_districts=free,
             c_degrees=degrees,
             notes=tuple(notes + [f"program: {tag} (∑ free-block degrees={degree}, K={k})"]),
