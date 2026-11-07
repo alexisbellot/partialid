@@ -1,7 +1,8 @@
 # Citing partialid
 
-If you use **partialid** in academic work, please cite both the software and
-the accompanying theory / paper when applicable.
+If you use **partialid** in academic work, please cite the software below.
+An accompanying theory paper is in preparation; cite it once it appears, and
+cite the methodological sources for the assumptions you rely on.
 
 ## Software
 

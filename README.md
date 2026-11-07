@@ -17,6 +17,10 @@ Assumptions are named pieces from the literature; you combine them with `&`.
 **Status:** `0.1.0a5` (alpha). The API may change; see the
 [stability contract](docs/stability.md).
 
+**Paper:** An accompanying theory paper is in preparation. Until it appears,
+please cite the [software](docs/citing.md) and the methodological sources for
+the assumptions you use.
+
 **Docs:** [https://alexisbellot.github.io/partialid/](https://alexisbellot.github.io/partialid/)
 (GitHub Pages; available once the repo is public / Pages is enabled).
 
