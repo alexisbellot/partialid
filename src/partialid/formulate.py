@@ -534,9 +534,7 @@ def _po_atom_as_interventional(atom: object) -> Query | None:
         return None
     if any(isinstance(v, PO) for v in lit.expr.assignment.values()):
         return None
-    return Query.interventional(
-        outcome=lit.expr.var, do=dict(lit.expr.assignment), value=lit.value
-    )
+    return Query.interventional(outcome=lit.expr.var, do=dict(lit.expr.assignment), value=lit.value)
 
 
 def _block_query(terms: list[tuple[float, object]]) -> Query | None:
@@ -916,9 +914,7 @@ def _account_district(
 
     if lam >= 3 or not is_covered(diagram, district):
         if lam >= 3 and sufficient_hyperedge(diagram, district) is not None:
-            feas = _sufficient_district_feasible(
-                variables, data, diagram, district, assumptions
-            )
+            feas = _sufficient_district_feasible(variables, data, diagram, district, assumptions)
             if feas is True:
                 return ("ok", "")
             if feas is False:
@@ -940,9 +936,7 @@ def _account_district(
     elif root_private_sides(diagram, district) is not None and not outside_parents(
         diagram, district
     ):
-        feas = _lambda2_district_feasible(
-            variables, data, diagram, district, assumptions
-        )
+        feas = _lambda2_district_feasible(variables, data, diagram, district, assumptions)
     else:
         return (
             "unknown",
@@ -1013,8 +1007,7 @@ def _formulate_one_block(
     if root_private_sides(diagram, district) is not None:
         if _external_parents(diagram, district):
             notes.append(
-                f"separable stack: {sorted(district)} has an outside parent; "
-                "λ=2 lift not used"
+                f"separable stack: {sorted(district)} has an outside parent; λ=2 lift not used"
             )
             return None
         nodes = tuple(n for n in diagram.topological_order() if n in district)
@@ -1076,9 +1069,7 @@ def _formulate_separable_stack(
             continue
         assert district is not None
         scale_lits = tuple(
-            lit
-            for lit in atom.lits
-            if isinstance(lit.expr, str) and lit.expr not in district
+            lit for lit in atom.lits if isinstance(lit.expr, str) and lit.expr not in district
         )
         scale = _event_mass(variables, data, scale_lits)
         kept = Atom(
@@ -1093,9 +1084,7 @@ def _formulate_separable_stack(
     for district in free:
         if buckets[district]:
             continue
-        status, message = _account_district(
-            variables, data, diagram, district, assumptions_s
-        )
+        status, message = _account_district(variables, data, diagram, district, assumptions_s)
         if status == "infeasible":
             return _infeasible_lp(variables, notes, message)
         if status == "unknown":
@@ -1183,9 +1172,7 @@ def _formulate_sufficient_lemma(
     nodes = tuple(n for n in diagram.topological_order() if n in district)
     rewritten = CausalDiagram(
         nodes=nodes,
-        directed=tuple(
-            (a, b) for a, b in diagram.directed if a in district and b in district
-        ),
+        directed=tuple((a, b) for a, b in diagram.directed if a in district and b in district),
         bidirected=(hyperedge,),
     )
     notes.append(
@@ -1229,9 +1216,7 @@ def _sufficient_district_feasible(
     if outcome is None:
         return None
     q = Query.interventional(outcome=outcome, do={}, value=variables.domains[outcome][0])
-    lp = _formulate_sufficient_lemma(
-        variables, data, q, diagram, district, assumptions, []
-    )
+    lp = _formulate_sufficient_lemma(variables, data, q, diagram, district, assumptions, [])
     if lp is None:
         return None
     if _lp_is_empty(lp):
@@ -1301,17 +1286,13 @@ def _formulate_lambda2_lift(
         if v not in an_obs:
             return None
         if not pinning_kernel_holds(variables, an_obs, data, diagram, v, parent_of[v]):
-            notes.append(
-                f"pinning failed: P({v} | predecessors) is not P({v} | parents)"
-            )
+            notes.append(f"pinning failed: P({v} | predecessors) is not P({v} | parents)")
             return _infeasible_lp(
                 variables,
                 notes,
                 f"infeasible: unconfounded {v} is not pinned by its parent kernel",
             )
-    kernels = {
-        v: _empirical_kernel(variables, an_obs, data, v, parent_of[v]) for v in exo
-    }
+    kernels = {v: _empirical_kernel(variables, an_obs, data, v, parent_of[v]) for v in exo}
 
     data_r = _remargin_data(variables, data, r_side)
     variables_r = variables.restrict(r_side)
@@ -1340,17 +1321,13 @@ def _formulate_lambda2_lift(
                 )
                 c[t] = _outcome_mass_with_kernels(
                     w1, exo, kernels, parent_of, query.outcome, yv
-                ) - _outcome_mass_with_kernels(
-                    w0, exo, kernels, parent_of, query.outcome, yv
-                )
+                ) - _outcome_mass_with_kernels(w0, exo, kernels, parent_of, query.outcome, yv)
         else:
             interv = dict(query.intervention)
             for t in range(ts.n_types):
                 if not allow[t]:
                     continue
-                w = evaluate_world(
-                    ts.order, ts.response_fns, ts.joint_types[t], ts.diagram, interv
-                )
+                w = evaluate_world(ts.order, ts.response_fns, ts.joint_types[t], ts.diagram, interv)
                 c[t] = _outcome_mass_with_kernels(
                     w, exo, kernels, parent_of, query.outcome, query.value
                 )
@@ -1398,8 +1375,7 @@ def _formulate_lambda2_lift(
         eq_rhs.append(0.0)
 
     notes.append(
-        "λ=2 root-block lift: joint response types with linear independence "
-        f"(roots {list(root_t)})"
+        f"λ=2 root-block lift: joint response types with linear independence (roots {list(root_t)})"
     )
     notes.extend(obj_notes)
 
@@ -1722,8 +1698,7 @@ def formulate(
                                 variables, an_obs, data, diagram, v, parent_of[v]
                             ):
                                 notes.append(
-                                    f"pinning failed: P({v} | predecessors) is not "
-                                    f"P({v} | parents)"
+                                    f"pinning failed: P({v} | predecessors) is not P({v} | parents)"
                                 )
                                 return _infeasible_lp(
                                     variables,
@@ -2097,24 +2072,24 @@ def formulate(
 
     return _seal(
         LPData(
-        c=c,
-        A_eq=A_eq,
-        b_eq=b_eq,
-        A_ub=A_ub,
-        b_ub=b_ub,
-        type_space=ts,
-        allowed_types=allow,
-        cells=cells,
-        P_vec=P,
-        method_hint=method,
-        notes=notes,
-        support_k=support_k,
-        f_sensitivity=f_sens_atom,
-        e0=e0,
-        pi0=pi0,
-        c_den=c_den,
-        outer_approximation=outer,
-        gpp=None,
+            c=c,
+            A_eq=A_eq,
+            b_eq=b_eq,
+            A_ub=A_ub,
+            b_ub=b_ub,
+            type_space=ts,
+            allowed_types=allow,
+            cells=cells,
+            P_vec=P,
+            method_hint=method,
+            notes=notes,
+            support_k=support_k,
+            f_sensitivity=f_sens_atom,
+            e0=e0,
+            pi0=pi0,
+            c_den=c_den,
+            outer_approximation=outer,
+            gpp=None,
         )
     )
 

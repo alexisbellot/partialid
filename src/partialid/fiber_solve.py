@@ -50,8 +50,7 @@ def is_fiber_separable(lp: LPData) -> bool:
     if lp.support_k is not None or lp.f_sensitivity is not None:
         return False
     if any(
-        "instrument LP" in n or "root-block lift" in n or "pinning failed" in n
-        for n in lp.notes
+        "instrument LP" in n or "root-block lift" in n or "pinning failed" in n for n in lp.notes
     ):
         return False
     # An explicit empty model is the equality 0 = 1, which a per-cell scan

@@ -113,6 +113,37 @@ classify_program(diagram, query=Q)  # degree from multi-regime + evidence
 [`program_degree.py`](https://github.com/alexisbellot/partialid/blob/main/src/partialid/program_degree.py)
 (and in [`classify_program`](api/index.md) in the API reference).
 
+### When is the canonical normal form a single linear program?
+
+The checklist below is the theorem. The model, the proofs, the examples, and what is known once a component has three or more hyperedges are written out in `WHEN_THE_BOUNDS_ARE_AN_LP.md`, at the repository root.
+
+Suppose you are given a causal diagram \(G\) (a DAG with latent hyperedges) and a linear counterfactual query \(Q\). Before looking at any dataset, you simplify the optimization problem over the canonical response-type laws using only equivalences that come directly from the graph and the query:
+
+1. **Delete redundant hyperedges:** Any hyperedge contained inside another is merged into the larger one.
+2. **Factor by \(c\)-components:** Because distinct \(c\)-components share no latent variables, the joint response-type law factors as a product \(q_1 \otimes \dots \otimes q_m\), and Tian's \(c\)-factor decomposition splits the observational distribution \(P\) into one factor \(Q_C\) per \(c\)-component.
+3. **Eliminate determined pieces from the objective:**
+   - **Pinning:** Any unconfounded variable \(V\) evaluated in at most one world per event of \(Q\) has its response law replaced in \(Q\) by the observed conditional \(P(V \mid \mathrm{Pa}_V)\).
+   - **Dropping:** Any \(c\)-component that \(Q\) never reads, or reads only through root variables (whose values are directly observed margins of \(P\)), is removed from the objective.
+
+What remains is the **normal form** of \((G, Q)\): an optimization of a multilinear objective \(f(q_1, \dots, q_K)\) over the remaining \(c\)-components \(C_1, \dots, C_K\), together with the requirement that every component's \(c\)-factor is **proper** (depends only on that component and its parents).
+
+**The theorem answers the following question:**
+
+> *Fix \(G\) and \(Q\) (in the class where every \(c\)-component has at most two hyperedges). When is this normal form a **single linear program** in \((q_1, \dots, q_K)\) that, for **every** positive observational table \(P\), either (a) is infeasible when no canonical SCM on \(G\) can generate \(P\), or (b) has minimum and maximum equal to the exact sharp bounds on \(Q\)?*
+
+This holds **if and only if** three conditions—read purely off \(G\) and \(Q\)—are met:
+
+- **Saturation (on the dropped components):** Every \(c\)-component dropped from the objective can realize *every* proper \(c\)-factor that a table \(P\) can present to it. Otherwise, there is a table \(P\) that the dropped component cannot generate (so the true model is empty/falsified), yet the normal form LP in the remaining variables \((q_1, \dots, q_K)\) never sees the dropped component and falsely returns finite bounds.
+  - *Graphically:* A 1-hyperedge component is saturated \(\iff\) for every \(Y \in C\) and every outside parent \(Z\) of \(C\), either \(Z \in \mathrm{Pa}_Y\) or \(Y\) has a directed path to \(Z\) (**reachability**). A 2-hyperedge component is saturated \(\iff\) **reachability** holds, every variable private to the first hyperedge and every variable private to the second are linked by a direct edge (**cross-edge test**), and no variable in the intersection of the two hyperedges has a **blind** private variable on both sides (**no two-sided blindness**: a private variable \(w\) is blind to an intersection variable \(\rho\) when some outside parent \(Z\) is a parent of \(w\), is not a parent of \(\rho\), and \(\rho\) is not a parent of \(w\)).
+- **Covering (on the remaining components):** For every remaining component \(C_j\), the set of realizable response laws matching \(P\) is a polytope (cut out by linear equalities and inequalities) for every table \(P\).
+  - *Graphically:* For \(\le 2\) hyperedges, this holds \(\iff\) at least one hyperedge of \(C_j\) contains all non-root variables of \(C_j\) (variables that have a parent in \(G\), inside or outside \(C_j\)), so the private variables of the other hyperedge are all global roots of \(G\), turning the latent-independence constraint \(R_{S_1} \perp R_{S_2}\) into the linear constraint \(\sum_{r_{12}} q(r_1, r_{12}, r_2) = P(S_1 = r_1) q(r_2)\).
+- **Linearity (on the objective over remaining components):** The multilinear objective \(f(q_1, \dots, q_K)\) is actually linear on the product of the feasible polytopes for every table \(P\) (equivalently, the pairwise four-term difference vanishes on the feasible sets; e.g., each event reads at most one remaining component, or any cross-component factor is fixed by that component's linear \(c\)-factor constraints).
+
+**Why the exact graphical characterization stops at \(\lambda(C) \le 2\):**
+
+- **One bipartition at \(\lambda \le 2\):** With at most two hyperedges \(H\) and \(K\) (latents \(U \perp V\)), the entire realizability constraint on the joint response law \(q_C(r_L, r_I, r_R)\) is a **single unconditional independence** \(R_L \perp R_R\), with \(R_I\) completely free given \((R_L, R_R)\). Both **Covering** and **Saturation** therefore reduce to two-sided graphical tests across the single cut \((L, R)\).
+- **Higher-order couplings at \(\lambda \ge 3\):** Once a component has three or more hyperedges, realizability is governed by overlapping marginal and conditional couplings (as in the triangle network \(\{A,B\}, \{A,C\}, \{B,C\}\)). For remaining components (**Covering**), whether every fiber is a polytope at \(\lambda \ge 3\) depends on recursive latent-conditioning reductions intertwined with which specific roots are parents of which specific non-roots. For dropped components (**Saturation**), variables inside the component that miss one latent can act as *internal switches* on the remaining latents (for example, on the 4-node chain \(A \to B \to C \to D\) with hyperedges \(\{A,C\}, \{A,D\}, \{B,D\}\)), imposing quantitative functional-equation constraints even when the graph is a total chain and every non-adjacent pair shares a hyperedge.
+
 ## Instrumental variables
 
 Classic binary IV recipe:

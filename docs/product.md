@@ -33,7 +33,7 @@ they are not the only (or primary) product story.
 | `benchmarks/` | Scale / method experiments | no | **no** |
 | `latex/`, `papers/`, `Figures/` | Research collateral (local only) | no | **no** |
 | `README.md`, `LICENSE`, `CHANGELOG.md`, `CITATION.cff`, `SECURITY.md` | Package metadata | metadata | yes |
-| Research notes (`THEORY*.md`, roadmaps, …) | Local working notes | no | **no** |
+| Research notes (`THEORY*.md`, `FOUNDATIONS.md`, …) | Local working notes | no | **no** |
 | `scripts/` | Maintainer utilities | no | **no** |
 
 Enforced for sdists via the repository `MANIFEST.in`. The wheel contains only

@@ -366,9 +366,7 @@ def leftover_maps_are_linear(
     """
     if not free:
         return True
-    if diagram is None or any(
-        not district_is_lp_block(diagram, d) for d in free
-    ):
+    if diagram is None or any(not district_is_lp_block(diagram, d) for d in free):
         # ``degrees`` still gates the no-diagram fallback used by older callers.
         if diagram is not None or any(int(deg) != 1 for deg in degrees):
             return False

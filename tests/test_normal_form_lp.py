@@ -88,9 +88,7 @@ def test_factual_factor_on_two_bows_is_a_tight_lp():
     V, P = _uniform(g)
     r = bound(V, P, Q, Assumptions.from_diagram(g))
     assert r.success and r.tight
-    bow = CausalDiagram.from_edges(
-        ["Z", "W"], directed=[("Z", "W")], bidirected=[("Z", "W")]
-    )
+    bow = CausalDiagram.from_edges(["Z", "W"], directed=[("Z", "W")], bidirected=[("Z", "W")])
     Vb, Pb = _uniform(bow)
     rb = bound(Vb, Pb, _do("W", "Z"), Assumptions.from_diagram(bow))
     assert rb.tight
@@ -119,9 +117,7 @@ def test_sum_of_root_private_and_bow_is_a_stacked_lp():
         directed=[("X", "W"), ("W", "Y")],
         bidirected=[("X", "W"), ("W", "Y")],
     )
-    bow = CausalDiagram.from_edges(
-        ["A", "B"], directed=[("A", "B")], bidirected=[("A", "B")]
-    )
+    bow = CausalDiagram.from_edges(["A", "B"], directed=[("A", "B")], bidirected=[("A", "B")])
     Vc, Pc = _uniform(chain)
     Vb, Pb = _uniform(bow)
     rc = bound(Vc, Pc, _do("Y", "X"), Assumptions.from_diagram(chain))

@@ -82,8 +82,7 @@ def test_frontdoor_with_confounding():
         return sum(p for k, p in RE2.items() if all(k[names.index(n)] == v for n, v in asg.items()))
 
     front_door = sum(
-        m(X=1, Z=z) / m(X=1)
-        * sum(m(X=xp, Z=z, Y=1) / m(X=xp, Z=z) * m(X=xp) for xp in (0, 1))
+        m(X=1, Z=z) / m(X=1) * sum(m(X=xp, Z=z, Y=1) / m(X=xp, Z=z) * m(X=xp) for xp in (0, 1))
         for z in (0, 1)
     )
     assert abs(r.lower - front_door) < 1e-10

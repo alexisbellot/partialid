@@ -86,9 +86,7 @@ def _reachability(diagram: CausalDiagram, district: frozenset[str]) -> bool:
     return True
 
 
-def _cross_edge(
-    diagram: CausalDiagram, hes: tuple[tuple[str, ...], ...]
-) -> bool:
+def _cross_edge(diagram: CausalDiagram, hes: tuple[tuple[str, ...], ...]) -> bool:
     h, k = set(hes[0]), set(hes[1])
     left, right = h - k, k - h
     if not left or not right:
@@ -113,9 +111,7 @@ def _two_sided_blind(
     def blind(w: str, rho: str) -> bool:
         if rho in diagram.parents(w):
             return False
-        return any(
-            z in diagram.parents(w) and z not in diagram.parents(rho) for z in outside
-        )
+        return any(z in diagram.parents(w) and z not in diagram.parents(rho) for z in outside)
 
     for rho in inter:
         if any(blind(w, rho) for w in left) and any(blind(w, rho) for w in right):
