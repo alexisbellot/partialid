@@ -1,0 +1,33 @@
+\section{Introduction}
+\label{sec:intro}
+In the background of any causal inference problem is an impossibility result:
+roughly, the idea that one may not determine the effect of interventions and counterfactuals from observational information alone \citep{pearl2009causality,bareinboim2022pearl}. It is well known that some qualitative understanding of the phenomenon is necessary for deriving the value of causal queries from data.
+
+That understanding can take the form of functional dependencies between variables, e.g., encoded in a causal diagram, as topological orderings between variables, restrictions on the shape of functions or on the strength of unobserved confounding, among others. Important results in the causal inference community show how one might exploit this knowledge to express causal queries in terms of observational probabilities \citep{shpitser2006identification,pearl2009causality}, and narrow the bounds that are implied by the data \citep{balke1994bounds,balke1997bounds,zhang2022partial,duarte2024automated,bellot2023towards,bellot2024towards,symbolicbounds2023general,shridharan2023scalable}. %And could be combined with assumptions placed on the shape of the underlying causal mechanisms themselves, for example stating monotonicity of the treatment response to encode the fact that the treatment is always beneficial \citep{manski1997monotone}, or with various sensitivity paramters to set a maximum strength on the influence of unobserved confounders \citep{rosenbaum2002observational,tan2006distributional,masten2018identification}. %Different implementations of these ideas have lead to a large number of frameworks to study the causal inference problem and its sensitivity to assumptions; that can often be difficult to navigate and compare for a practitioner.
+
+When the data is discretely-valued and a causal diagram is available, the causal inference problem can be written in its most general form as a polynomial program, due to \citet{balke1994bounds,balke1997bounds} and expanded to general causal diagrams by \citet{zhang2022partial,duarte2024automated}. Different assumptions, see e.g. \citet{rosenbaum2002observational,tan2006distributional,masten2018identification}, may then be interpreted as equality and inequality constraints on this program, and in principle solved exactly with optimization solvers giving a tight interval for the causal query of interest under a remarkably varied set of assumptions. In practice, however, the exponential increase in the number of parameters and complexity of the program render the problem often intractable \citep{shridharan2023scalable}. It is desirable to understand when this optimization program is linear in its free parameters.
+
+In this paper we characterize when that program is linear in its free parameters, for an input diagram in which each confounded component has at most two unobserved confounders. We show that,
+
+\begin{center}
+\begin{minipage}{0.85\textwidth}
+    \centering
+    \textit{Sharp bounds on a counterfactual query given observational probabilities equal the optimum of one linear program if and only if the diagram and the query satisfy a set of conditions that can be read off from the causal diagram.}
+\end{minipage}
+\end{center}
+
+This result extends the sufficient conditions presented by \citet{symbolicbounds2023general} that already defined a general set of problems that could be solved in a computationally efficient manner. 
+
+We implement this result as a new software package, named \pid{}, that aims to bring together the different families of assumptions that have been proposed in the literature in a unified framework. The user sets the causal or counterfactual query of interest, a variable number of assumptions that can be composed, and provides the observational data. The package then returns a tight numerical interval for the causal query of interest, using our Theorem if applicable, or through bi-linear or polynomial optimization programs for more general cases. This is illustrated in the following example:
+\begin{lstlisting}
+import pandas as pd
+from partialid import Assumptions, Query, bound, from_dataframe
+
+df = pd.read_csv("notebooks/data/job_training.csv")
+d = from_dataframe(df, columns=["treated", "employed"])
+Q = Query.interventional(outcome="employed", do={"treated": 1}, value=1)
+a = (Assumptions.order("treated", "employed")
+     & Assumptions.mtr("employed", "treated"))
+r = bound(d.variables, d.P, Q, a)
+print(f"{r.lower:.3f} {r.upper:.3f} {r.tight}")   # 0.557 0.857 True
+\end{lstlisting}

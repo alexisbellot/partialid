@@ -1,0 +1,78 @@
+\subsection{Comparison with Sachs et al.}
+\label{app:sachs}
+
+\citet[Proposition~2]{symbolicbounds2023general} give a sufficient condition
+for a tight linear program in one joint type law, and \texttt{causaloptim}
+returns a symbolic bound for the graphs that meet it. \Cref{sec:sachs}
+records the four conditions and shows that every graph meeting them meets
+\cref{thm:lp}. Their condition is sufficient. \Cref{thm:lp} is an equivalence
+for diagrams whose components have at most two hyperedges, and the inclusion
+of their class is one way. The rows below are the other direction: \cref{thm:lp} returns a linear program, and no
+bipartition meets their conditions. The comparison is the criterion, not the
+running time. The classical instrument is the reference case, in both
+classes.
+
+\begin{table}[ht]
+\centering
+\caption{Graphs on which \cref{thm:lp} is a linear program.
+``In both'' means Proposition~2 of \citet{symbolicbounds2023general} applies
+as well. The other rows have no bipartition meeting their conditions
+(1)--(4). Intervals are the sharp bounds under \cref{thm:lp}.}
+\label{tab:sachs}
+\small
+\begin{tabular}{@{}p{0.28\textwidth}lp{0.32\textwidth}l@{}}
+\toprule
+Graph & Prop.~2 & Why it fails & Interval \\
+\midrule
+Instrument, $X\leftrightarrow Y$ & in both & --- & $[0.283,0.615]$ \\
+Mediated $X\leftrightarrow W\to Y$ & no & $Y$ is pinned, not confounded with $\{X,W\}$ & $[0.470,0.570]$ \\
+Two instruments $Z_1,Z_2$ & no & $Z_1$ and $Z_2$ share no latent & $[0.397,0.789]$ \\
+Instrument with $Z\leftrightarrow X$ & no & the latent on $\{Z,X\}$ crosses every cut & $[0.283,0.615]$ \\
+Pair chain, PNS & no & two latents in one $c$-component & $[0.000,0.600]$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Mediated chain.}
+The graph is $X\to W\to Y$ with one latent on $\{X,W\}$ and $U\perp U_Y$,
+the query is $P(Y_1{=}1)$, and the table is~\eqref{eq:re3}. The event uses
+$Y$ in one world, so \cref{lem:middle} pins $Y$ and \cref{thm:lp} leaves an
+LP in $P(U)$ (\cref{ex:mediated}). The three bipartitions of $\{X,W,Y\}$ each
+fail their conditions: $Y$ does not share the latent of $\{X,W\}$, the latent
+on $\{X,W\}$ meets both sides of the cut after $X$, and $P(Y_x)$ is not a
+linear functional of the types of $Y$ alone. Their algorithm therefore does
+not apply. Forcing it by taking a free joint over $(R_X,R_W,R_Y)$ drops
+$U\perp U_Y$ and widens the interval from $[0.470,0.570]$ to
+$[0.270,0.770]$.
+
+\paragraph{Two instruments.}
+$Z_1,Z_2\to X\to Y$ with $X\leftrightarrow Y$ and $Z_1\perp Z_2$. The only
+cut with all arrows pointing the same way puts both instruments on the left
+and $\{X,Y\}$ on the right. Their condition~(3) asks the left side to share
+one latent, and $Z_1$ and $Z_2$ do not. Both instruments are $c$-components
+the query does not read, so \cref{thm:lp} still reduces the problem to the
+Balke--Pearl LP in the response types of $\{X,Y\}$. On the packaged table the
+interval is $[0.397,0.789]$.
+
+\paragraph{A latent between the instrument and the treatment.}
+Add the hyperedge $\{Z,X\}$ to the classical instrument, and keep
+$\{X,Y\}$. The query $P(Y_1{=}1)$ does not change. Every bipartition either
+lets the latent on $\{Z,X\}$ or the latent on $\{X,Y\}$ meet both sides, or
+asks $\{Z,X,Y\}$ to share one latent. Proposition~2 does not apply.
+\Cref{prop:lift} does: $Z$ is a root, the independence of the two latents is
+linear, and the sharp interval equals the Balke--Pearl interval of the
+classical instrument. On the seed-$2$ table both graphs give
+$[0.283,0.615]$. Sharing a latent with the treatment does not change the
+bound, and it takes the graph out of their class.
+
+\paragraph{Pair chain.}
+$X\to W\to Y$ with hyperedges $\{X,W\}$ and $\{W,Y\}$ is one $c$-component
+with two latents (\cref{ex:pair}). The same case analysis leaves no
+bipartition: a single latent does not cover all three nodes, and each
+pairwise latent crosses the cut that would separate its endpoints.
+$X$ is a root, so \cref{lem:two} makes the sharp program an LP for every
+linear query, including PNS. On the table~\eqref{eq:re2} that LP gives
+$[0.000,0.600]$. One latent on $\{X,W,Y\}$, which does meet their
+conditions, gives the wider interval $[0.000,0.650]$. For $P(Y_1{=}1)$ on
+this table the two models agree, at $[0.350,0.850]$; the probabilities of
+causation are where the second latent binds.

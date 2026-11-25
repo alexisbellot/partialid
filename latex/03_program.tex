@@ -1,0 +1,162 @@
+\section{Necessary and Sufficient conditions for Linearity}
+\label{sec:theorem}
+This section provides necessary and sufficient conditions for the partial identification program to be linear in its free parameters, and records which assumptions preserve that linear program.
+
+For a fixed diagram in which every $c$-component has at most two hyperedges, the partial identification program for a linear query (\cref{def:linear-query}) can be reduced to a simpler program that keeps one response law for each $c$-component the query uses, with the observational $c$-factors as constraints. A duplicate hyperedge, or a hyperedge contained in another, may be deleted without changing the realizable laws: every variable on the smaller hyperedge already hears the larger one, so both latents can be stored on the larger hyperedge. All hyperedge counts and graphical tests below apply after that deletion. In a causal order of $\G$, the \emph{$c$-factor} of a $c$-component $C$ is $P_C=\prod_{V_k\in C}P(v_k\mid\mathbf{v}_{<k})$ \citep{tian2002general}, and it is \emph{proper} when it depends on $\mathbf{v}$ only through $C$ and its outside parents $\Pa(C)\setminus C$.
+
+\subsection{The reduced program}
+\label{sec:reduced}
+
+\begin{definition}[Reduced program]
+  \label{def:reduced}
+  Let $\G$ be a directed acyclic graph with latent hyperedges, fix a causal order of $\G$, and let $Q$ be a linear query (\cref{def:linear-query}). An event \emph{reads} a $c$-component when its value depends on the response type of some variable in the component. That variable is found by recursively expanding potential outcomes along directed ancestors in the graph with arrows into the intervened variables removed. A $c$-component is \emph{removed} when no event of $Q$ reads it, or every event that reads it depends on it only through observed roots; the query then uses the corresponding margin of $P$. An unconfounded variable is \emph{pinned} when every event of $Q$ (after that recursive expansion) evaluates it in at most one world, and it enters $Q$ through the kernel $\kappa(v\mid\mathrm{pa})=P(V{=}v\mid\Pa_V{=}\mathrm{pa})$.
+
+  Let $C_1,\ldots,C_K$ be the $c$-components neither removed nor pinned, let $f(q_1,\ldots,q_K)$ be $Q$ after substituting those kernels and root margins, and let $F_j(P)$ be the set of realizable response-type laws $q_j$ of $C_j$ satisfying $A_j q_j=P_j$, where $P_j$ is the $c$-factor of $C_j$. The \emph{reduced program} minimizes and maximizes $f(q_1,\ldots,q_K)$ over $(q_1,\ldots,q_K)\in F_1(P)\times\cdots\times F_K(P)$ (reducing to the substituted functional of $P$ when $K=0$), and is infeasible when a pinned factor is improper, $P(V\mid\mathbf{v}_{<V})\neq P(V\mid\mathrm{pa}_V)$, or a removed component has an improper $c$-factor.
+
+  When $K\ge 1$, the reduced program reduces to the single linear program
+  \begin{equation}
+  \label{eq:lp}
+  \min/\max\sum_{j=1}^{K} c_j^\top q_j
+  \quad\text{s.t.}\quad
+  A_j q_j = P_j,\quad \mathbf{1}^\top q_j=1,\quad q_j\ge 0,
+  \end{equation}
+  (where a pinned kernel may appear in $c_j$), paired—whenever a remaining component $C_j$ has two hyperedges $H_1,H_2$ and $H_2$ contains every variable in $C_j$ that has a parent, with \emph{root block} $S_1=C_j\setminus H_2$, $S_2=C_j\setminus H_1$, and $S_{12}=H_1\cap H_2$—with
+  \begin{equation}
+  \label{eq:two}
+  \sum_{r_{12}}q_j(r_1,r_{12},r_2)
+  =
+  P(S_1{=}r_1)\sum_{r_1',r_{12}}q_j(r_1',r_{12},r_2)
+  \quad\text{for all }r_1,r_2,
+  \end{equation}
+  precisely when each $F_j(P)$ equals that polytope and $f(q_1,\ldots,q_K)=\sum_{j=1}^K c_j^\top q_j$ on $F_1(P)\times\cdots\times F_K(P)$.
+\end{definition}
+
+\begin{definition}[Saturation]
+  \label{def:saturation}
+  A removed $c$-component $C$ is \emph{saturated} when it realizes every proper conditional kernel on $C$ given $\Pa(C)\setminus C$ (equivalently, every proper $c$-factor arising in any causal order of $\G$). An unconfounded variable is always saturated: every proper factor is the kernel $P(V\mid\mathrm{pa}_V)$.
+
+  For a $c$-component $C$, \emph{reachability} holds when, for every variable $Y\in C$ and every parent $Z$ of $C$ outside $C$, either $Z$ is a parent of $Y$, or a directed path runs from $Y$ to $Z$. One hyperedge is saturated exactly when reachability holds.
+
+  For two hyperedges, write $L$ and $R$ for the variables private to each and $I$ for the variables on both. The \emph{cross-edge test} holds when every variable of $L$ and every variable of $R$ are joined by a direct edge.
+
+  A private variable $W$ is \emph{blind} to an intersection variable $A$ when some outside parent $Z$ is a parent of $W$, is not a parent of $A$, and $A$ is not a parent of $W$. \emph{Two-sided blindness} holds when some intersection variable has a blind private variable on both sides. Two hyperedges are saturated exactly when reachability, the cross-edge test, and the absence of two-sided blindness all hold. With no outside parent, reachability holds and no private variable is blind, so the cross-edge test is the whole condition.
+\end{definition}
+
+\begin{example}
+  On $\G:\{A\to Z\to M,\, Z\to Y,\, M\to Y,\, A\leftrightarrow M,\, A\leftrightarrow Y\}$, the hyperedges are $\{A,M\}$ and $\{A,Y\}$. The variable $A$ lies on both, $M$ lies only on $\{A,M\}$, and $Y$ lies only on $\{A,Y\}$. There is no directed edge from $A$ to $M$ or from $A$ to $Y$. The variable $Z$ lies on no hyperedge: it is a parent of $M$ and of $Y$, and it is not a parent of $A$, so $M$ and $Y$ are both blind to $A$. The table in which $A$ and $Z$ are independent and each equal to $1$ with probability $\tfrac12$, $Y=A$, and the two conditional gaps of $M$ given $A$ equal $0.7$ and $0.6$, is not reproducible (\cref{app:saturation}).\qed
+\end{example}
+
+\begin{example}
+  \label{ex:instrument}
+  On the instrument $\G:\{Z\to X\to Y,\,X\leftrightarrow Y\}$ with binary $Z,X,Y$, the $c$-components are $\{Z\}$ and $\{X,Y\}$. The event $\{Y_x{=}y\}$ sets $X$ to $x$ and evaluates $Y$,
+  \begin{equation}
+  P(Y_x{=}y)=\sum_{r_X,r_Y}\I\{r_Y(x){=}y\}\,P(r_X,r_Y).
+  \end{equation}
+  It does not depend on $r_Z$, so it reads $\{X,Y\}$ only and $\{Z\}$ is removed. The event $\{Y_x{=}y,\,Z{=}z\}$ reads $\{Z\}$ in the factual world. The variable $Z$ lies on no hyperedge and is evaluated once, so it is pinned,
+  \begin{equation}
+  P(Y_x{=}y,\,Z{=}z)
+  =
+  P(Z{=}z)\sum_{r_X,r_Y}\I\{r_Y(x){=}y\}\,P(r_X,r_Y),
+  \end{equation}
+  and $P(Z{=}z)$ is a coordinate of the table. A component read only through a root is removed in the same way. On $\{A\to B,\,A\to X\to Y,\,A\leftrightarrow B,\,X\leftrightarrow Y\}$ with query $P(Y_{X=1}{=}1)$, the component $\{A,B\}$ is read only through the root $A$ and is removed, while $\{X,Y\}$ remains.
+
+  The query $P(Z{=}1)$ removes $\{X,Y\}$, and that component is not saturated. Reachability fails: $Z$ is a parent of $X$ and not of $Y$, and no directed path runs from $Y$ to $Z$. The assignments
+  \begin{align*}
+  Z = f_Z(U_Z), \
+  X = R_X(Z,U), \
+  Y = R_Y(X,U), \
+  \end{align*}
+  together with $R_X(z,U)=1$, $P(Y{=}1\mid Z{=}0)=1$, and $P(Y{=}1\mid Z{=}1)=0$ give a proper factor of $\{X,Y\}$, and $Z$ is binary with $P(Z{=}1)=\tfrac12$. Then $Y=R_Y(1,U)$ and $U\perp Z$, so $Y\perp Z$, and $P(Y{=}1,Z{=}0)=\tfrac12$ against $P(Y{=}1)P(Z{=}0)=\tfrac14$. A program that returns $P(Z{=}1)$ on this table reports a number the diagram does not attain. On $Y\to Z\to X$ with the same hyperedge $\{X,Y\}$, $Y$ reaches $Z$ and reachability holds.\qed
+\end{example}
+
+\begin{definition}[Covering]
+  \label{def:covering}
+  A remaining $c$-component is \emph{covered} when it is an unconfounded variable, or one hyperedge, or two hyperedges with a root block (\cref{def:reduced}).
+\end{definition}
+
+\begin{example}
+  On $\G:\{X\to W\to Y,\, X\leftrightarrow W,\, W\leftrightarrow Y\}$, the variable $X$ lies only on $\{X,W\}$ and $Y$ lies only on $\{W,Y\}$, and there is no edge between $X$ and $Y$, so the cross-edge test fails. If the component is removed it is not saturated. The equations are $X=f_X(U)$, $W=f_W(X,U,V)$, $Y=f_Y(W,V)$, with $U\perp V$. Set $W=0$ and let $X=Y$ with $P(X{=}1)=\tfrac12$. Every parent value that $X$ and $Y$ see is the constant $0$, so $X$ is a function of $U$ and $Y$ is a function of $V$. Independence gives $X\perp Y$, against $P(X{=}1,Y{=}1)=\tfrac12$. Adding the edge $X\to Y$ makes the cross-edge test hold.
+
+  If the component remains, the variables with a parent are $W$ and $Y$, and $\{W,Y\}$ contains both, so $X$ is the root block and covering holds (\cref{prop:lift}). On $\G:\{X\to Y\to D,\, X\leftrightarrow Y,\, X\leftrightarrow D\}$, the variables with a parent are $Y$ and $D$, and neither hyperedge contains both, so there is no root block and covering fails (\cref{ex:desc}).\qed
+\end{example}
+
+\begin{definition}[Linearity of the objective]
+  \label{def:linearity}
+  Write $q_1,\ldots,q_K$ for the response-type laws of the components that remain, and write $f(q_1,\ldots,q_K)$ for the query after pinning and after the root margins of removed components have been substituted. A denominator that is one coordinate of a positive table scales $f$ by a positive constant. The objective is \emph{linear} when, for every table, $f$ is linear on the product of the feasible sets. Equivalently, for every pair of remaining vectors the four-term difference
+  \begin{equation}
+  \label{eq:four}
+  f(q,r')+f(q',r)-f(q,r)-f(q',r')
+  \end{equation}
+  is zero at all feasible values, the other vectors being held fixed. On each simplex $\mathbf{1}^\top q_j=1$, an affine function of the product is a homogeneous linear function $\sum_j c_j^\top q_j$.
+
+  The difference vanishes for every table exactly when the following reduction leaves no product of two or more remaining vectors. Each counterfactual event in $f$ expands into multilinear monomials in the $q_j$. After collecting terms across all events of $f$, whenever a linear functional of $q_j$ lies in the row space of the equality-constraint matrix of $C_j$ (including~\eqref{eq:two} when $C_j$ has two hyperedges and a root block), replace it by the corresponding linear combination of table entries.
+\end{definition}
+
+\begin{example}
+\label{ex:linearity}
+On $\G:\{X\to Y,\, X\leftrightarrow Y,\, Y\to Z\to W,\, Z\leftrightarrow W\}$, the sum $P(Y_x{=}1)+P(W_z{=}1)$ is two events, each using one remaining vector, and the four-term difference is zero. The conjunction $P(Y_x{=}1,W_z{=}1)$ is the product of the same two factors. The equations of $\{X,Y\}$ do not fix $P(Y_x{=}1)$, so on a positive table each factor takes two values and the difference is nonzero (\cref{ex:two-bows}).
+
+The product $P(Y{=}1,\,W_{Z=z}{=}1)$ uses both vectors and stays linear. On every law of $\{X,Y\}$ that matches the table,
+\begin{equation}
+\sum_{x,r}\I\{r(x){=}1\}\,q_{XY}(x,r)=P(Y{=}1),
+\end{equation}
+because the factual outcome equals $R_Y(R_X)$. The objective equals that constant times a linear function of $q_{ZW}$. Replacing the factual $Y$ by $Y_{X=x}$ removes the identity with $P(Y{=}1)$, and both factors move on a positive table.\qed
+\end{example}
+
+\subsection{The criterion}
+\label{sec:criterion}
+
+\begin{theorem}[Sharp bounds as a linear program]
+\label{thm:lp}
+Suppose every $c$-component of $\G$ has at most two hyperedges, $Q$ is a linear query (\cref{def:linear-query}), and the response laws are otherwise unrestricted. For every positive table, the reduced program (\cref{def:reduced}) is infeasible precisely when no canonical mechanism reproduces the table, and otherwise its minimum and maximum equal the sharp bounds. This holds if and only if every removed component is saturated, every remaining component is covered, and the objective is linear.
+\end{theorem}
+
+The proof is in \Cref{app:saturation}. It uses the pinning reduction (\Cref{lem:middle}), saturation of one and two hyperedges, and the fact that two latents in one $c$-component impose only the independence \Cref{eq:two} when one side consists of roots (\Cref{lem:two}).
+
+\begin{example}
+  Consider $\G:\{X\to W\to Y,\, X\leftrightarrow W\}$, with binary $X,W,Y$ and $Q=P(Y_x{=}y)$, and with no further assumptions. The $c$-components are $\{X,W\}$ and $\{Y\}$. The event evaluates $Y$ in one world, so $Y$ is pinned and the only component that remains is $\{X,W\}$. Covering holds because that component has one hyperedge, and linearity holds because the objective is one vector. The reduced program has $K=1$, with $q$ the law of $(R_X,R_W)$ and with $P_1(x',w)=P(x',w)$ the $c$-factor of $\{X,W\}$. The model is compatible only when $P(y\mid x,w)=P(y\mid w)$; the pinned kernel $\kappa(y\mid w)=P(Y{=}y\mid W{=}w)$ then sits in the objective, and the identified interval equals
+  \begin{equation}
+  \min/\max_{q}
+  \sum_{r_X,r_W}\kappa\bigl(y\mid r_W(x)\bigr)\,q(r_X,r_W)
+  \end{equation}
+  subject to
+  \begin{equation}
+  \sum_{r_X,r_W}
+  \I\{r_X{=}x',\,r_W(x'){=}w\}\,q(r_X,r_W)
+  =
+  P(x',w)
+  \quad\text{for all }x',w,
+  \end{equation}
+  together with $\sum q=1$ and $q\ge 0$. The first display is $c^\top q$ and the second is $Aq=P_1$.
+
+  For the query $Q=P(Y_{X=1}{=}1,\,Y_{X=0}{=}0)$, the event evaluates $Y$ in two worlds, so $Y$ is not pinned. It reads $\{X,W\}$ and $\{Y\}$, the probability keeps the product $P(r_X,r_W)\,P(r_Y)$, and linearity fails.
+\end{example}
+
+\subsection{Linear assumptions}
+\label{sec:assumptions}
+
+\begin{definition}[Linear assumption]
+\label{def:labels}
+An assumption set is \emph{linear} when every constraint is either a zero restriction on a coordinate of a remaining response law $q_j$, or a linear inequality in the remaining vectors $q_1,\ldots,q_K$ whose coefficients are fixed by $P$.
+\end{definition}
+
+A zero restriction is a face of the simplex: exclusions, monotone response, no-defiers, and other support constraints \citep{manski1997monotone,imbens1994identification}. An inequality with coefficients fixed by $P$ is an \emph{anchored} inequality. The odds-ratio bounds of \citet{tan2006distributional}, \citet{rosenbaum2002observational}, and \citet{masten2018identification} are of this form once each odds is compared with the observed propensity (\cref{app:msm}). The inequalities may run across remaining components, and every constraint acts on $q_1,\ldots,q_K$.
+
+\begin{proposition}[Linear assumptions]
+\label{prop:assumptions}
+Suppose every $c$-component has at most two hyperedges and the three tests of \cref{thm:lp} hold. Let the assumption set be linear (\cref{def:labels}). For every positive table, the reduced program with those restrictions adjoined is infeasible when no canonical mechanism obeying the assumptions reproduces the table, and otherwise its minimum and maximum are the sharp bounds under the assumptions.
+\end{proposition}
+
+The proof is in \cref{app:thm}.
+
+% \begin{remark}
+% \label{rem:assumptions}
+% The necessity of the three tests is proved for the diagram and the query alone. An assumption that deletes every non-constant response of a non-root can make that variable behave as a root, so the restricted feasible set can be a polytope on a graph where covering fails (\cref{ex:desc}). An odds comparison that is not anchored is bilinear in $q$ (\cref{ex:gamma}).
+% \end{remark}
+
+\begin{corollary}[Solver]
+\label{cor:solver}
+If the three tests of \cref{thm:lp} hold, the sharp bounds are one LP, or a functional of $P$ when $K=0$. A linear assumption keeps this conclusion (\cref{prop:assumptions}). If one covered component remains and an assumption is an unanchored odds bound (\cref{ex:gamma}), the program has one simplex and bilinear constraints. If linearity fails and two vectors remain, the program is bilinear in those vectors. A product of two vectors in which the factor equations fix one factor remains the linear case. A component with three or more hyperedges lies outside \cref{thm:lp}. Three or more remaining vectors, with a product that the factor equations do not reduce, leave a polynomial program.
+\end{corollary}
+
+The degree of the program in the latent laws counts the free latent factors that survive pinning and removal. It is a property of a formulation. A $c$-component with two latents has degree two in the latent laws, and covering makes its feasible set the polytope of \cref{lem:two}.

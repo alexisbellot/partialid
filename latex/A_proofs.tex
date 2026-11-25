@@ -1,0 +1,1023 @@
+\section{Proofs}
+\label{app:proofs}
+
+Every nontrivial claim is justified by expanding the query and the
+observational law in latents or response types and then eliminating
+factors. We write $\ind[\,\cdot\,]$ for the indicator of an event.
+
+\subsection{Canonical partitions}
+\label{app:canon}
+
+\begin{proof}[Finite response encoding of \cref{def:canonical_scm}]
+Fix $V$ with finite parent set $\Pa_V$. Each noise value $u_V$
+determines a function
+$r_u:\mathrm{Val}(\Pa_V)\to\mathrm{Val}(V)$ by
+$r_u(\mathrm{pa})=f_V(\mathrm{pa},u_V)$. There are only
+$|\mathrm{Val}(V)|^{|\mathrm{Val}(\Pa_V)|}$ such functions. Let
+$R_V$ enumerate them and set $f_V(\mathrm{pa},r)=r(\mathrm{pa})$.
+Then $f_V(\,\cdot\,,u_V)=f_V(\,\cdot\,,r_u)$ by construction, and
+$r_u$ is unique. The law of $U_V$ pushes forward to a law on this
+finite set. If $\Pa_V=\emptyset$ the functions are the constants in
+$\mathrm{Val}(V)$.
+\end{proof}
+
+\subsection{Pinning}
+\label{app:middle}
+
+\begin{lemma}[Pinning an unconfounded variable]
+\label{lem:middle}
+Let $V$ be a variable that no hyperedge contains. Suppose every counterfactual event of $Q$
+evaluates $V$ in at most one world (the factual world counts as a world), and
+$P(\Pa_V=\mathrm{pa})>0$ for every parent configuration $\mathrm{pa}$. Then
+every appearance of $V$'s mechanism in the query and in the observational
+constraints is through the kernel $\kappa(v\mid\mathrm{pa})=P(V{=}v\mid\Pa_V{=}\mathrm{pa})$.
+The observational law is compatible with the model only if
+$P(v\mid \mathbf{v}_{<V})=P(v\mid\mathrm{pa}_V)$, where $\mathbf{v}_{<V}$ are
+the values of the variables preceding $V$ in a causal order; under that
+equality, $V$'s factor can be replaced by $\kappa$.
+\end{lemma}
+
+
+\begin{proof}[Proof of \cref{lem:middle}]
+\emph{SCM.} No hyperedge contains $V$, so $V=f_V(\Pa_V,R_V)$ with
+$R_V\sim p_V$ independent of the vector $\mathbf{U}'$ of all other latents.
+Every other variable, and $\Pa_V$ in particular, is a function of
+$\mathbf{U}'$ and of $V$'s value. Because the graph is acyclic, $\Pa_V$ in
+any world is a function $\mathrm{pa}(\mathbf{u}')$ of $\mathbf{U}'$ alone, and
+so are the variables $\mathbf{V}_{<V}$ that precede $V$ in a causal order.
+
+\emph{Kernel.} Since $R_V\perp\mathbf{V}_{<V}$,
+$P(V{=}v\mid\mathbf{v}_{<V})=P(R_V(\mathrm{pa}){=}v)$, where $\mathrm{pa}$ is
+the parent part of $\mathbf{v}_{<V}$. By positivity,
+$\kappa(v\mid\mathrm{pa}):=P(R_V(\mathrm{pa}){=}v)=P(V{=}v\mid\Pa_V{=}\mathrm{pa})$
+is identified, and $P(v\mid\mathbf{v}_{<V})$ depends on $\mathbf{v}_{<V}$ only
+through $\mathrm{pa}$. If $P$ violates that equality, no model reproduces $P$.
+
+\emph{Query and data.} Take any counterfactual event $E$ (of $Q$ or an observational cell)
+that evaluates $V$ in one world, at parents $\mathrm{pa}(\mathbf{u}')$:
+\begin{align*}
+P(E)&=\sum_{\mathbf{u}'}q'(\mathbf{u}')\sum_{v}\sum_{r}p_V(r)\,
+\ind\bigl[r(\mathrm{pa}(\mathbf{u}'))=v\bigr]\,
+\ind[E'(\mathbf{u}',v)]\\
+&=\sum_{\mathbf{u}'}q'(\mathbf{u}')\sum_v
+\kappa\bigl(v\mid\mathrm{pa}(\mathbf{u}')\bigr)\,
+\ind[E'(\mathbf{u}',v)],
+\end{align*}
+where $E'(\mathbf{u}',v)$ is the event that the remaining literals of $E$
+hold when $V$ takes the value $v$ in that world. Each term is linear in $q'$
+with identified coefficients.
+
+\emph{Elimination.} $p_V$ enters every counterfactual event only through the identified
+one-dimensional margins $\kappa(\cdot\mid\mathrm{pa})$. Substitute them. The
+remaining freedom in $p_V$, namely the joint law of $(R_V(\mathrm{pa}))_{\mathrm{pa}}$,
+appears nowhere. Conversely, under the equality any $p_V$ with these margins
+reproduces the factor $P(v\mid\mathbf{v}_{<V})$ of $P$, so the substitution
+does not change what the other factors may do.
+
+If some counterfactual event read $R_V$ in two worlds at $\mathrm{pa}\neq\mathrm{pa}'$, it
+would require $P(R_V(\mathrm{pa}){=}v,\allowbreak\,R_V(\mathrm{pa}'){=}v')$, which $P$ does
+not identify, so the hypothesis of \cref{lem:middle} would fail.
+\end{proof}
+
+\subsection{Classification}
+\label{app:thm}
+
+\begin{lemma}[Two latents in one $c$-component]
+\label{lem:two}
+Let a $c$-component $C$ have exactly two hyperedges, with latents
+$U_1\perp U_2$. Write $S_1$ for the variables of $C$ that read only $U_1$,
+$S_2$ for those that read only $U_2$, and $S_{12}$ for those that read both.
+A joint law $q$ of the response types $(R_{S_1},R_{S_{12}},R_{S_2})$ is
+induced by some model if and only if $R_{S_1}\perp R_{S_2}$ under $q$. If
+every variable in $S_1$ is a root, the law of $R_{S_1}$ is $P(S_1)$ and the
+condition is the linear constraint~\eqref{eq:two} of \cref{thm:lp}.
+Given both latents, the response of $S_{12}$ may be any kernel.
+\end{lemma}
+
+
+\begin{proof}[Proof of \cref{lem:two}]
+\emph{SCM.} Each variable of $S_1$ reads $U_1$, each variable of $S_2$ reads
+$U_2$, and each variable of $S_{12}$ reads both, so
+$R_{S_1}=g_1(U_1)$, $R_{S_2}=g_2(U_2)$, and $R_{S_{12}}=g_{12}(U_1,U_2)$.
+
+\emph{Only if.} $R_{S_1}$ is a function of $U_1$ and $R_{S_2}$ of $U_2$, and
+$U_1\perp U_2$.
+
+\emph{If.} Take $q$ with $q(r_1,r_2)=q(r_1)q(r_2)$ and set
+$\kappa(r_{12}\mid r_1,r_2)=q(r_1,r_{12},r_2)/\bigl(q(r_1)q(r_2)\bigr)$,
+with any probability vector where the denominator vanishes. Let
+$U_2:=R_{S_2}\sim q(r_2)$. Let $U_1:=(R_{S_1},G)$, where $R_{S_1}\sim q(r_1)$
+and, given $R_{S_1}=r_1$, $G$ is a random map from the values of $R_{S_2}$ to
+those of $R_{S_{12}}$ whose coordinates $G(r_2)$ are drawn independently from
+$\kappa(\cdot\mid r_1,r_2)$. Set $R_{S_{12}}:=G(U_2)$. Then $U_1\perp U_2$,
+each response type reads only its own latents, and
+\[
+P(R_{S_1}{=}r_1,R_{S_{12}}{=}r_{12},R_{S_2}{=}r_2)
+=q(r_1)\,q(r_2)\,\kappa(r_{12}\mid r_1,r_2)=q(r_1,r_{12},r_2).
+\]
+
+\emph{Roots.} A root has no parents, so its response type is its value and
+the law of $R_{S_1}$ is $P(S_1)$. Writing
+$q(r_1,r_2)=\sum_{r_{12}}q(r_1,r_{12},r_2)$ and
+$q(r_2)=\sum_{r_1',r_{12}}q(r_1',r_{12},r_2)$, the independence is
+$q(r_1,r_2)=P(S_1{=}r_1)q(r_2)$, which is~\eqref{eq:two}.
+\end{proof}
+
+\subsection{Saturation and covering}
+\label{app:saturation}
+
+\begin{lemma}[Agreement]
+\label{lem:agree}
+Let $X,Y,Z$ be independent, and suppose $f(X,Z)=g(Y,Z)$ almost surely. Then the common value is a function of $Z$ alone.
+\end{lemma}
+
+\begin{proof}[Proof of \cref{lem:agree}]
+For almost every fixed $z$, the two sides are functions of independent arguments and are therefore constant in those arguments.
+\end{proof}
+
+\begin{lemma}[Equal absolute gaps]
+\label{lem:gap}
+Let $A$, $C$, and $W$ be binary, let $U,V,W$ be independent, and write $A=f(U,V)$ and $C=h(W,U)$. Suppose $0<P(A{=}1)<1$, both values of $W$ occur, and that for each such value $w$ the variable $A$ is almost surely a function of $(h(w,U),V)$. Then one of the following holds. The maps $h(w,\cdot)$ share no bipartition that carries a non-constant binary function, in which case $A$ is a function of $V$ alone, $C\perp A\mid W$, and both gaps are $0$. Or the maps share one bipartition: there is a non-constant bit $\psi(U)$ and a bit $\varepsilon(w)$ with $h(w,U)=\psi(U)\oplus\varepsilon(w)$, and
+\[
+\bigl|P(C{=}1\mid A{=}1,W{=}w)-P(C{=}1\mid A{=}0,W{=}w)\bigr|
+\]
+does not depend on $w$.
+\end{lemma}
+
+\begin{proof}[Proof of \cref{lem:gap}]
+If the maps share no usable bipartition, then for almost every $v$ the map $u\mapsto f(u,v)$ is constant on the level sets of every $h(w,\cdot)$, hence constant, and $A$ is a function of $V$ alone. Since $C=h(W,U)$ does not depend on $V$ and $W\perp(U,V)$, one has $C\perp A\mid W$.
+
+If the maps share one bipartition, $C$ does not depend on $V$ and $W\perp(\psi(U),A)$. Conditioning on $W=w$ flips $\psi$ or leaves it, so the absolute gap of $C$ given $A$ equals the absolute gap of $\psi$ given $A$.
+\end{proof}
+
+In the necessity proofs below we exhibit boundary tables in which variables outside a witness set equal $0$ almost surely. Because the canonical response space (\cref{def:canonical_scm}) is finite, the set of tables reproducible on $\G$ is the continuous image of a compact product of simplices and is therefore closed. Any unrealizable boundary table whose factors in a causal order $\prec$ are proper lies at positive distance from that closed set, so mixing each conditional in the chain rule of $\prec$ with a uniform kernel of small weight $\varepsilon>0$ (using only variables in $C_i\cup(\Pa(C_i)\setminus C_i)$ for each $V_k\in C_i$) yields a strictly positive unrealizable table whose $\prec$-factors remain proper. Moreover, any outside parent $Z\notin C$ belongs to a $c$-component $C'\neq C$ sharing no hyperedge with $C$, and $C'$ realizes an independent marginal on $Z$ (with $C'\setminus\{Z\}$ set to $0$) by drawing $Z$ from a seed on a hyperedge meeting $Z$ (or its private noise) and ignoring $\Pa_Z$.
+
+\begin{lemma}[One hyperedge]
+\label{lem:reach}
+A $c$-component carried by one hyperedge is saturated if and only if reachability holds.
+\end{lemma}
+
+\begin{proof}[Proof of \cref{lem:reach}]
+\emph{Sufficiency.} Let the factor of $C$ be proper. Give each variable of $C$ a fresh uniform seed on the hidden cause $U$, independent of the exogenous seeds of the unconfounded variables. In a topological order, sample each unconfounded variable from the kernel of its parents, and sample each $V\in C$ from $P(V\mid\text{earlier variables in }C,\,\mathrm{pa}(V))$. This is a function of $\mathrm{pa}(V)$ and $U$: the earlier variables in $C$ are recomputed from their seeds. Every outside parent of $C$ that precedes $V$ in the causal order is a parent of $V$, because otherwise reachability would give a directed path from $V$ to that parent. A proper factor does not depend on a variable $w$ outside $C$ and outside the parents of $C$. Let $V$ be the earliest variable of $C$ whose conditional could depend on $w$. Summing the product over the later variables of $C$ recovers that conditional times the earlier factors. The earlier factors do not depend on $w$, and the sum does not either, so the conditional of $V$ does not. The equations reproduce the chain rule.
+
+\emph{Necessity.} Suppose $Y\in C$, an outside parent $Z$ is not a parent of $Y$, and no directed path runs from $Y$ to $Z$. Let $Z$ be binary with $P(Z{=}1)=\tfrac12$, let $Y=Z$, and let every other variable equal $0$. Every parent of $Y$ equals $0$, so $Y=R_Y(0,U)$. No path carries $U$ from $Y$ to $Z$, and every other variable of $C$ is constant, so $Z\perp U$ and therefore $Y\perp Z$, against $Y=Z$. Because no directed path runs from $Y$ to $Z$, acyclicity admits a causal order $\prec$ placing $Z$ before $Y$; in $\prec$ the component containing $Z$ has proper factor $P(Z{=}1)=\tfrac12$, the dependence $Y=Z$ sits in the proper $\prec$-factor of $C$, and the $\varepsilon$-perturbation above yields a strictly positive impossible table.
+\end{proof}
+
+\begin{lemma}[Two hyperedges, no outside parent]
+\label{lem:cross}
+Let $C$ have two hyperedges and no parent outside $C$. Write $L$ and $R$ for the two private sets. Then $C$ is saturated if and only if every variable of $L$ and every variable of $R$ are joined by a direct edge.
+\end{lemma}
+
+\begin{proof}[Proof of \cref{lem:cross}]
+\emph{Necessity.} If $A\in L$ and $B\in R$ have no direct edge, the table with $A=B$, $P(A{=}1)=\tfrac12$, and every other variable equal to $0$ is impossible (and its $\varepsilon$-perturbation is a strictly positive impossible table). Every parent of $A$ or of $B$ equals $0$, so $A$ is a function of one latent and $B$ of the other. Independence gives $A\perp B$, against $P(A{=}1,B{=}1)=\tfrac12$.
+
+\emph{Sufficiency, by peeling sources.} The inductive object is a directed graph colored by $L$, $R$, and $I$, with an external input $E$ available to every remaining variable. Variables in $L\cup I$ hear $U$, variables in $R\cup I$ hear $V$, and $U\perp V$. If both private sets are nonempty, every cross pair has a direct edge. Every joint, and every kernel of $E$, is realizable. A component with no outside parent is the case of $E$ empty.
+
+If one private set is empty, every variable hears one common cause. Order the variables, give each a fresh seed on that cause, independent of $E$, and sample the target conditional given the earlier variables and $E$.
+
+If the intersection is empty and both private sets are nonempty, put seeds of $L$ on $U$ and seeds of $R$ on $V$. In a topological order a variable $x\in L$ has every earlier variable of $R$ as a parent, and it recomputes every earlier variable of $L$ from $U$. The symmetric reading applies on $R$.
+
+If $\rho\in L$ has no parent in the remaining graph, the cross edge cannot enter $\rho$, so $\rho$ points at every variable of $R$. Draw $\rho$ from its marginal with a seed on $U$, and apply the induction to the smaller graph with external input $(E,\rho)$. The symmetric construction handles a source in $R$.
+
+If $\rho\in I$ has no parent, delete $\rho$ and every edge out of $\rho$. The remaining graph is smaller and still has a cross edge for every surviving cross pair. Realize its marginal, and reserve a further coordinate of $U$ unused by that mechanism. The source hears both causes, recomputes the rest, and draws itself from the target conditional given the rest and $E$. Children of $\rho$ may ignore the parent $\rho$ in the marginal mechanism; dependence between $\rho$ and its children is carried by the seeds $\rho$ hears.
+
+Every nonempty graph falls under one of these cases, and each reduction removes one variable.
+\end{proof}
+
+\begin{lemma}[Two hyperedges with outside parents]
+\label{lem:two-sat}
+Let $C$ have two hyperedges and at least one outside parent. Then $C$ is saturated if and only if reachability, the cross-edge test, and the absence of two-sided blindness all hold.
+\end{lemma}
+
+\begin{proof}[Proof of \cref{lem:two-sat}]
+\emph{Reachability and the cross-edge test.} The table of \cref{lem:reach} is impossible whenever some $Y\in C$ misses an outside parent $Z$ and does not reach it: $Y$ is a function of the causes through $Y$, and those causes do not reach $Z$. The table of \cref{lem:cross} is impossible whenever a cross pair has no direct edge, with every outside parent set to $0$.
+
+\emph{Two-sided blindness.} Suppose $m_1$ is private to one hyperedge and blind to an intersection variable $\rho$ via an outside parent $Z_1$, and $y_2$ is private to the other and blind to the same $\rho$ via an outside parent $Z_2$. The cross edge joins $m_1$ and $y_2$. Blindness of $y_2$ says that $\rho$ is not a parent of $y_2$, and blindness of $m_1$ says that $Z_1$ is not a parent of $\rho$. If $m_1\to y_2$, a directed path from $y_2$ back to $Z_1$ would cycle through $m_1$, so reachability puts $Z_1$ among the parents of $y_2$. Then both private variables are blind to $\rho$ via the same parent $Z=Z_1$. The opposite cross edge produces a common parent in the same way. Since $Z$ is not a parent of $\rho$, reachability gives a path from $\rho$ to $Z$, and in every topological order $\rho$ precedes $Z$, which precedes both ends of the cross edge.
+
+Pin every other variable to $0$, let $\rho$ and $Z$ be independent and binary, each equal to $1$ with probability $\tfrac12$, let the head of the cross edge equal $\rho$, and give the tail the conditional gaps $0.7$ and $0.6$. The equations inside $C$ reduce to $A=\rho=f(U,V)$, $M=g(Z,U)$, and $Y=h(M,Z,V)$, with the head playing the role of $Y$ in the smallest picture and the tail the role of $M$. Suppose a mechanism realizes $Y=\rho$ and $Z\perp\rho$. With all variables outside $\{\rho,Z,m_1,y_2\}$ equal to $0$, $Z$ is a function of $\rho$ and latents outside $C$ independent of $(U,V)$, so $Z\perp\rho$ implies $Z\perp(U,V)$. For each value $z$,
+\[
+f(U,V)=h\bigl(g(z,U),z,V\bigr),
+\]
+so \cref{lem:gap} applies with conditioning variable $Z$ and inner variable $M$. The absolute gap of $M$ given $\rho$ is the same at both values of $Z$, or both gaps are $0$. The gaps $0.7$ and $0.6$ violate that identity. The factor containing $Z$ is a constant kernel of $\rho$, realized by $Z$'s component ignoring $\rho$, and perturbing by $\varepsilon>0$ yields a strictly positive impossible table.
+
+Equal absolute gaps are realizable, so the identity is sharp. Independent binary $U$ and $Z$, each equal to $1$ with probability $\tfrac12$, a mode bit of weight $0.8$, and the assignments $M=U\oplus Z$ and $\rho=1-U$ when the mode is on, with $\rho$ an independent binary variable equal to $1$ with probability $\tfrac12$ when the mode is off, and with the head copying $\rho$, give gaps $-0.8$ and $+0.8$.
+
+\emph{Sufficiency.} Proceed by induction on $|C|$, and for fixed $|C|$ on the number of outside parents that are not among a set $E$ of common inputs. Reachability, the cross-edge test, and the absence of two-sided blindness are assumed, and every variable may use $E$. If $L$ or $R$ is empty, every variable hears one common cause and \cref{lem:reach} applies. If $I$ is empty, order $C$ topologically, put seeds of $L$ on $U$ and seeds of $R$ on $V$, and sample each variable from its proper conditional: a variable in $L$ has every earlier variable of $R$ as a parent by the cross edge, has every earlier outside parent as a parent by reachability, and recomputes every earlier variable of $L$ from $U$. If every outside parent already lies in $E$, \cref{lem:cross} applies.
+
+Otherwise pick an outside parent $Z\notin E$ earliest in a topological order, and split $C$ into $N=\{v:Z\notin\mathrm{Pa}_v\}$ and $M=\{v:Z\in\mathrm{Pa}_v\}$. If $N$ is empty, move $Z$ into $E$ and apply the induction. If $N$ is nonempty, reachability gives every $v\in N$ a path to $Z$, and acyclicity forces four facts. No edge runs from $M$ to $N$. Every cross edge between $L\cap N$ and $R\cap M$ points into $R\cap M$, and every cross edge between $R\cap N$ and $L\cap M$ points into $L\cap M$. Any outside parent of a variable in $N$ precedes $Z$ and therefore lies in $E$, so a proper factor splits as a kernel of $N$ given $E$ times a kernel of $M$ given $N$, $Z$, and the other outside parents.
+
+No two-sided blindness at $Z$ says that each $\rho\in I\cap N$ fails to be blind on at least one side. If no variable of $R\cap M$ is blind to $\rho$, then $\rho$ is a parent of every such variable; put $\rho$ in a block $I_U$. Otherwise $\rho$ is a parent of every variable of $L\cap M$; put $\rho$ in $I_V$. Realize the kernel of $N$ in three stages. Realize the marginal of the private variables of $N$ by the empty-intersection construction, with seeds of $L\cap N$ on $U$ and seeds of $R\cap N$ on $V$. Order $I_U$ and give each variable a fresh seed on $U$; it hears both causes, recomputes the private variables of $N$, and samples its conditional. Order $I_V$ and give each variable a fresh seed on $V$; it recomputes the private variables and $I_U$.
+
+Every variable of $M$ can then evaluate $N$. A variable in $L\cap M$ hears $U$ and has $R\cap N$, $I_V$, and $E$ as parents. A variable in $R\cap M$ hears $V$ and has $L\cap N$, $I_U$, and $E$ as parents. A variable in $I\cap M$ hears both causes. Thus $E\cup N\cup\{Z\}$ is a common input to $M$. The piece $M$ is smaller and inherits the three conditions: a path used by reachability cannot return from $M$ into $N$, and a two-sided blind pair inside $M$ would already have been two-sided in $C$. The induction realizes the kernel of $M$, and the chain rule gives the factor of $C$.
+\end{proof}
+
+\begin{lemma}[Covering]
+\label{lem:cover}
+Let $C$ be a $c$-component with at most two hyperedges. For every positive table, the realizable response laws compatible with that table form a polytope if and only if $C$ is covered. The polytope may be empty.
+\end{lemma}
+
+\begin{proof}[Proof of \cref{lem:cover}]
+An unconfounded variable has every law of its response type realizable, and the table cuts that law by the linear kernel equations $\sum_{r:\,r(\mathrm{pa})=v}q(r)=P(V{=}v\mid\mathrm{pa})$. One hyperedge has every response law realizable, because the hidden cause can carry the whole response tuple and every variable hears it. The feasible set is the linear system given by the $c$-factor, together with $q\ge 0$ and $\sum q=1$. It is empty exactly when no response law induces the factor.
+
+Now let $C$ have two hyperedges, and suppose the hyperedge with latent $U$ contains every variable of $C$ that has a parent. Let $S$ be the variables private to the other hyperedge. Each of them is a global root, and the block $S$ is a function of the other latent. By \cref{lem:two}, a joint response law is realizable if and only if the response types private to $U$ are independent of $S$. The table fixes the margin of $S$, so the independence is~\eqref{eq:two}. Together with the linear factor equations this is a polytope.
+
+Conversely, suppose at least two variables of $C$ have a parent and neither hyperedge contains all of them. Then two variables with a parent, $Y$ and $D$, share no hyperedge: a variable of $C$ outside one hyperedge is private to the other, and the two witnesses of the failed containments are distinct. Any realizable law has $R_Y\perp R_D$. Start from a full-support product law $q_0$, which is realizable by drawing each response from a latent that variable hears. For a binary variable the signed measure
+\[
+\delta=\varepsilon\bigl(\delta_{\mathrm{const}_0}+\delta_{\mathrm{const}_1}-\delta_{\mathrm{id}}-\delta_{\mathrm{neg}}\bigr)
+\]
+has total mass zero. The pair of constants, and the pair consisting of the identity and the negation, each put mass $1/2$ on both outputs at every parent value, so $\delta$ contributes $0$ to every one-world output margin. Choose $\varepsilon>0$ small enough that $q_0+\delta$ stays nonnegative.
+
+Let $q$ add $\delta$ to the marginal of $R_Y$ only, and let $q'$ add $\delta$ to the marginal of $R_D$ only. Both are product laws, hence realizable. A data cell depends on $R_Y$ only through the output of $Y$ at the parent value fixed by the other responses, and parents are earlier in the topological order. Since $\delta$ preserves every one-world output margin, $q$ and $q'$ reproduce the same strictly positive table. Their midpoint has joint law of $(R_Y,R_D)$ equal to the product of its margins minus $\tfrac14\,\delta\otimes\delta$. The two response types are dependent, so the midpoint is not realizable. The map from response laws to tables is linear, so the midpoint matches the table. The feasible set is not convex.
+\end{proof}
+
+\begin{proof}[Proof of \cref{thm:lp}]
+\emph{Step 1: one block per $c$-component.} Let $C_1,\ldots,C_m$ be all the
+$c$-components and $q_{C}$ the joint law of the response types of the
+variables in $C$. Distinct $c$-components share no latent, so the joint law
+of all response types is $q_{C_1}\otimes\cdots\otimes q_{C_m}$, and the
+model restricts each $q_C$ separately. By the $c$-component factorization
+\citep{tian2002general},
+\[
+P(\mathbf{v})=\prod_{i=1}^m Q[C_i](\mathbf{v}_{C_i}\mid\mathrm{pa}(C_i)),
+\qquad
+Q[C_i](\mathbf{v}_{C_i}\mid\mathrm{pa})=\sum_{\mathbf{r}}
+\ind[g_i(\mathbf{r},\mathrm{pa})=\mathbf{v}_{C_i}]\,q_{C_i}(\mathbf{r}),
+\]
+where $g_i$ evaluates the types of $C_i$ given the values $\mathrm{pa}$ of
+its parents outside $C_i$. Each $c$-factor is identified
+from $P$ as a product of conditionals $P(v_k\mid\mathbf{v}_{<k})$ over the
+variables of $C_i$ \citep{tian2002general}; call it $P_i$. A model reproduces $P$ only if $A_i q_{C_i}=P_i$ for every $i$, with $A_i$ the
+fixed $0/1$ matrix of the display, and only if each factor $P_i$ is a function of the parents of $C_i$. The constraints separate by $c$-component: the feasible set is a product of one block
+per $c$-component.
+
+\emph{Step 2: pinning and removal.} A counterfactual event of $Q$ depends only on the blocks it reads. By \cref{lem:middle}, a pinned unconfounded variable enters every such event through the kernel $\kappa$, and the model reproduces $P$ only when that factor is proper. A component removed by \cref{def:reduced} enters the objective through observed root margins, or not at all. Its own factor still has to be proper, and, when it is proper, realizable. If $K=0$, every event is a functional of those kernels and root margins.
+
+\emph{Step 3: sufficiency.} Fix any causal order of $\G$ and any positive table, and suppose the three tests hold. An improper factor of a pinned or removed component makes the table impossible; the reduced program records that and is infeasible. A proper factor of a removed component is realizable by saturation: an unconfounded variable by \cref{lem:middle}, one hyperedge by \cref{lem:reach}, and two hyperedges by \cref{lem:cross,lem:two-sat}. Pinning and the root-margin substitution keep the same set of values of the query. By \cref{lem:cover}, each remaining feasible set $F_j(P)$ is a polytope, cut out by the $c$-factor equations and, when the component has two hyperedges, by~\eqref{eq:two}. The feasible set of the reduced program is the product of these polytopes. Linearity says that the objective is linear on that product, hence of the form~\eqref{eq:lp}. If some remaining polytope is empty, no canonical mechanism reproduces the table. If every remaining polytope is nonempty, the removed components have realizable laws, so some mechanism reproduces the table, and the optimum is the sharp bound.
+
+\emph{Step 4: necessity.} Reproducibility factors by components. Suppose a removed component $C$ fails saturation, missing a proper $\prec$-factor $p_C$ in some causal order $\prec$. Build a table whose $C$-piece in $\prec$ is $p_C$ and whose other pieces come from realizable laws; a point mass on a constant response is realizable. When the missing piece needs an outside parent to take more than one value, give that parent's component a law that charges those values independently of its parents, and perturb by $\varepsilon>0$ to make the table strictly positive while keeping all $\prec$-factors proper. The resulting positive table is not reproducible. The reduced program in $\prec$ does not constrain $C$, and the remaining feasible sets are nonempty, so the reduced program has an optimum on a table the diagram does not produce.
+
+If some remaining component fails covering, \cref{lem:cover} supplies a positive table whose realizable set $F_j(P)$ is not a polytope, so the reduced program's feasible set on that table is not the polytope of~\eqref{eq:lp}--\eqref{eq:two}. If the feasible sets are polytopes and a four-term difference~\eqref{eq:four} is nonzero at feasible values, the objective is not linear on the product. For three or more vectors the difference is tested one pair at a time: a product $q_1 q_3$ has a zero four-term difference in the slots $(q_1,q_2)$ and is still bilinear.
+\end{proof}
+
+\begin{proof}[Proof of \cref{prop:assumptions}]
+The hypotheses of \cref{thm:lp} hold, so Step~3 of its proof applies. For a positive table, each removed component with a proper factor is realizable, each remaining feasible set is a polytope, and on that product the query equals $\sum_j c_j^\top q_j$. A linear assumption (\cref{def:labels}) does not change the query. Every constraint is $q_{j,i}=0$ or $b(P)^\top q\le d(P)$, where $q=(q_1,\ldots,q_K)$ collects the remaining vectors and the coefficients $b(P),d(P)$ are computed from the table.
+
+\emph{Face.} On the bow $X=f_X(U)$, $Y=f_Y(X,U)$, with $Q=P(Y_1{=}1)$,
+\begin{align*}
+P(Y_1{=}1)
+&=
+\sum_r \ind[r_Y(1){=}1]\,q(r),
+\\
+P(x,y)
+&=
+\sum_r \ind[r_X{=}x]\,\ind[r_Y(x){=}y]\,q(r).
+\end{align*}
+Monotone response sets $q(r)=0$ whenever $r_Y(1)<r_Y(0)$. The objective and the factor equations remain linear in the surviving coordinates, and the feasible set is a face of the polytope of \cref{lem:cover}. The resulting interval is~\eqref{eq:mtr}.
+
+\emph{Anchored inequality.} The same bow with an anchored odds bound compares each response with the observed propensity $\pi_0$. Clearing the constant odds, as in \cref{app:msm}, gives
+\[
+q(x,r)\,\pi_0(x')
+\le
+\Lambda\,\pi_0(x)\,q(x',r),
+\]
+linear in $q$. Anchoring replaces the product of two free coordinates in \cref{ex:gamma} by coefficients computed from $\pi_0$.
+
+\emph{Cut.} The restricted feasible set is the product of the remaining polytopes cut by finitely many such equalities and inequalities, including inequalities that run across components. The cut of a polytope by linear constraints is a polytope, and it may be empty. For one hyperedge, and for an unconfounded variable, every response law that matches the $c$-factor is realizable, so a point of the cut is realizable. For two hyperedges with a root block, \cref{lem:two} states realizability as~\eqref{eq:two}, already present in the polytope. A point that meets the factor equations, \eqref{eq:two}, and the assumption is induced by a canonical mechanism. If the cut is empty, no such mechanism reproduces the table. If it is nonempty, the linear objective attains its minimum and maximum on the cut, and those values are the sharp bounds under the assumptions.
+\end{proof}
+
+\paragraph{Non-necessity under linear assumptions.}
+Necessity of the three tests is Step~4 of the proof of \cref{thm:lp}, which uses no assumption beyond the diagram and the query. An assumption can restore a polytope where covering fails. Let $C$ have two hyperedges, with private blocks $S_1$ and $S_2$ and intersection $S_{12}$, and suppose a variable of $S_2$ has a parent, so $S_2$ is not a root block. Set $q(r_2)=0$ unless every coordinate of $r_2$ is a constant response. Each variable of $S_2$ then ignores its parents, and $S_2$ equals its response. The factor equations are realizable on this face only when the conditional law of $S_2$ does not depend on its parents; otherwise the face is empty. When they are realizable, summing them yields $P(S_2{=}r_2)=\sum_{r_1,r_{12}}q(r_1,r_{12},r_2)$ for each constant $r_2$. \Cref{lem:two} requires $R_{S_1}\perp R_{S_2}$. Substituting the margin, as in the root case of that lemma, gives
+\begin{equation}
+\label{eq:const-face}
+\sum_{r_{12}} q(r_1,r_{12},r_2)
+=
+P(S_2{=}r_2)\sum_{r_2',r_{12}} q(r_1,r_{12},r_2')
+\end{equation}
+for every constant $r_2$. This is \eqref{eq:two} with the root block on the $S_2$ side, and the restricted feasible set is a polytope. On $X\to Y\to D$ with hyperedges $\{X,Y\}$ and $\{X,D\}$ (\cref{ex:desc}), $D$ is the non-root private variable, and deleting its non-constant responses is this face.
+
+\begin{proof}[Proof of \cref{cor:solver}]
+The first two sentences are \cref{thm:lp} and \cref{prop:assumptions}. An unanchored odds bound on one simplex is the product of two coordinates of that simplex (\cref{ex:gamma}), so the constraints are bilinear while the feasible set stays a polytope. If~\eqref{eq:four} is nonzero and exactly two vectors remain, the objective is bilinear in those vectors. A factor in the row space of the factor matrix is constant on the feasible set, and substituting it leaves a linear function. A component with three or more hyperedges is outside the hypothesis of \cref{thm:lp}. In the latent laws, each free latent factor contributes one simplex to every product term that the factor equations do not reduce, so the degree of that program is the number of free factors.
+\end{proof}
+
+\subsection{Witness expansions}
+\label{app:witnesses}
+
+\Cref{tab:casemap} lists one instance for each way the conditions of
+\cref{thm:lp} can hold or fail. The paragraphs below give the expansions.
+
+\begin{table}[ht]
+\centering
+\caption{Case map of \cref{thm:lp} and \cref{cor:solver}. $\pdeg$ is the
+number of free latent factors after pinning and after dropping unread
+$c$-components.}
+\label{tab:casemap}
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+Setting & Reason & $\pdeg$ & Program \\
+\midrule
+Bow or one oval, $P(Y_x)$, MTR & one $c$-component, $\lambda=1$ & $1$ & LP \\
+Classical IV, $P(Y_x)$ or PNS & $\{Z\}$ not read & $1$ & LP \\
+Mediated $X\leftrightarrow W\to Y$, $P(Y_x)$ & $Y$ pinned & $1$ & LP \\
+Same graph, PNS & one event reads two & $2$ & bilinear \\
+Pair chain, linear $Q$ & $\lambda=2$, root $X$ & $2$ & LP \\
+IV with $Z\leftrightarrow X$, $P(Y_x)$ & $\lambda=2$, root $Z$ & $2$ & LP (Balke--Pearl) \\
+Descendant (\cref{ex:desc}) & $\lambda=2$, no root block & $2$ & bilinear \\
+Markovian, $P(Y_x)$ & all pinned & $0$ & point \\
+Markovian, PNS & reads $\{Y\}$ only & $1$ & LP \\
+Bow, anchored MSM & linear inequalities & $1$ & LP \\
+Bow, unanchored $\Gamma$ & bilinear inequalities & $1$ & bilinear \\
+Markovian chain, PNS & one event reads three & $3$ & polynomial \\
+Two bows, $P(Y_x)+P(W_z)$ & one $c$-component per event & $2$ & LP (stacked) \\
+Same graph, $P(Y_x,W_z)$ & one event reads two & $2$ & bilinear \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Bow / order-only.}
+$X=f_X(U)$, $Y=f_Y(X,U)$. Then
+$Q=\sum_u\ind[f_Y(x,u)=1]P(U{=}u)$ and
+$P(x',y')=\sum_u\ind[f_X(u)=x']\ind[f_Y(x',u)=y']P(U{=}u)$.
+Both are linear in one simplex. Faces (MTR, exclusions) stay linear.
+
+\paragraph{Mediated one latent, interventional.}
+This is \cref{ex:mediated}; the expansion is~\eqref{eq:mediated}.
+\Cref{lem:middle} pins $Y$ for single-world use. One $c$-component,
+$\{X,W\}$, is read. This instance is outside
+\citet[Proposition~2]{symbolicbounds2023general}: see \cref{sec:sachs}
+for the three failed bipartitions.
+
+\paragraph{Classical IV.}
+This is \cref{ex:iv-lp}; the expansion is~\eqref{eq:iv-exp}. The instrument
+$\{Z\}$ is a $c$-component that the query does not read; the query reads
+$\{X,Y\}$, with $\lambda=1$. PNS on the same graph reads the same
+$c$-component. Two independent instruments $Z_1,Z_2$ with $Z_1\perp Z_2$ are
+two unread $c$-components; their Condition~3 fails and the program remains an
+LP.
+
+\paragraph{Long Markovian PNS.}
+$X=f_X(U_X)$, $M_1=f_{M_1}(X,U_1)$, $M_2=f_{M_2}(M_1,U_2)$,
+$Y=f_Y(M_2,U_Y)$, all noises independent, and
+$Q=P(Y_1{=}1,Y_0{=}0)$. Each of $R_{M_1}$, $R_{M_2}$, and $R_Y$ is used in two
+worlds, so \cref{lem:middle} does not apply, and the single counterfactual event reads three
+$c$-components: linearity fails. The query expands as a product
+$P(U_1)P(U_2)P(U_Y)$, of degree $3$.
+
+\paragraph{Markovian PNS.}
+$X=f_X(U_X)$, $Y=f_Y(X,U_Y)$, $U_X\perp U_Y$, and
+$Q=P(Y_1{=}1,Y_0{=}0)$. Then
+$Q=\sum_{u_Y}\ind[f_Y(1,u_Y)=1]\ind[f_Y(0,u_Y)=0]P(U_Y)$.
+The query reads $\{Y\}$ only, in two worlds, so $\{Y\}$ is a read
+$c$-component with $\lambda=1$. The interventional query $P(Y_x)$ pins
+$Y$ (g-formula) and is identified.
+
+\paragraph{Pair chain.}
+$U_1\perp U_2$ on overlapping pairs along $X\to W\to Y$:
+\begin{align*}
+Q
+&=
+\sum_{u_1,u_2}
+\ind\bigl[f_Y(f_W(x,u_1,u_2),u_2)=1\bigr]
+P(U_1)P(U_2),
+\\
+P(x',w',y')
+&=
+\sum_{u_1,u_2}\ind[\,\cdots\,]\,P(U_1)P(U_2).
+\end{align*}
+Neither factor is pinned, and the program is bilinear in $(P(U_1),P(U_2))$.
+In the joint type law it is the LP of \cref{prop:lift}(a). The same directed
+skeleton with one hyperedge $\{X,W,Y\}$ is the bow/oval case above.
+
+\paragraph{Mediated graph, PNS.}
+Same SCM as the mediated interventional case, but
+\[
+Q
+=
+\sum_{u,u_Y}
+\ind[f_Y(W_1(u),u_Y)=1]\,
+\ind[f_Y(W_0(u),u_Y)=0]\,
+P(U)P(U_Y).
+\]
+$Y$ is used in two worlds, so \cref{lem:middle} does not remove $U_Y$, and the
+counterfactual event reads $\{X,W\}$ and $\{Y\}$. Two free factors.
+
+\paragraph{Additive two bows.}
+The expansions are in \cref{ex:two-bows}. Each counterfactual event of $Q$ reads one
+$c$-component, and the constraints are the two $c$-factors, each
+linear in one simplex. The stacked program
+$\min/\max\,c_1^\top q_1+c_2^\top q_2$ subject to
+$A_1 q_1=P(X,Y)$ and $A_{2,y}q_2=P(Z,W\mid Y{=}y)$ is an LP. The conjunction
+$P(Y_x{=}1,W_z{=}1)$ on the same graph is $(c_1^\top q_1)(c_2^\top q_2)$,
+bilinear in these coordinates.
+
+\paragraph{A descendant that matters.}
+This is \cref{ex:desc}. By \cref{lem:two}, with $S_1=\{Y\}$, $S_{12}=\{X\}$,
+$S_2=\{D\}$, the model is the set of laws $q(r_Y,x,r_D)$ with
+$\sum_x q(r_Y,x,r_D)=a(r_Y)\,\nu(r_D)$, where $a$ and $\nu$ are the laws of
+$R_Y$ and $R_D$, and
+\begin{align*}
+P(Y_1{=}1)&=\sum_{r_Y,x,r_D}\ind[r_Y(1)=1]\,q(r_Y,x,r_D),\\
+P(x,y,d)&=\sum_{r_Y,r_D}\ind[r_Y(x)=y]\,\ind[r_D(y)=d]\,q(r_Y,x,r_D).
+\end{align*}
+For a fixed $\nu$ the program is an LP in $(q,a)$. Optimizing that LP over a
+grid of $\nu$ gives witness models, hence values inside the identified
+interval. A branch and bound over boxes of $\nu$, with the McCormick envelopes
+of the products $a(r_Y)\nu(r_D)$ on each box (an LP relaxation), gives valid
+outer values. Run until the two agree to $5\cdot10^{-4}$, they place the lower
+bound in $[0.0213,0.0218]$ and the upper bound in $[0.5818,0.5823]$, against
+$[0.017,0.618]$ after dropping $D$.
+
+\subsection{Anchored MSM and unanchored Rosenbaum bounds}
+\label{app:msm}
+
+Write $\pi_0(\,\cdot\mid\mathrm{pa})$ for the observed propensity.
+The anchored Tan bound is
+\[
+\Lambda^{-1}
+\le
+\frac{\pi(x\mid r,\mathrm{pa})/\pi(x'\mid r,\mathrm{pa})}
+{\pi_0(x\mid\mathrm{pa})/\pi_0(x'\mid\mathrm{pa})}
+\le
+\Lambda
+\]
+whenever the observed odds are defined. Multiplying through by the
+(constant) observed odds and by the type masses gives
+\[
+q(x,r;\mathrm{pa})\,\pi_0(x'\mid\mathrm{pa})
+\le
+\Lambda\,\pi_0(x\mid\mathrm{pa})\,q(x',r;\mathrm{pa}),
+\]
+linear in $q$. For binary root $X$ this is
+$q(1,r)\le\Lambda\theta_0 q(0,r)$ and
+$q(0,r)\le(\Lambda/\theta_0)q(1,r)$ with
+$\theta_0=e_0/(1-e_0)$. The $\ell_\infty$ $c$-dependence bound
+$\lvert e(r)-e_0\rvert\le c$ likewise clears to linear inequalities.
+
+The unanchored Rosenbaum comparison~\eqref{eq:gamma} is the same odds
+bound without a data-constant baseline: the product of two free
+coordinates remains. Anchoring to the observed odds within a factor
+$\sqrt{\Gamma}$ is Tan MSM at $\Lambda=\sqrt{\Gamma}$.
+
+On~\eqref{eq:re1} one has $e_0=1/2$ and $\theta_0=1$. Writing
+$S=q(0,01)+q(0,11)$ and $Q=p_{11}+S$, the MSM couplings give
+\begin{align*}
+S_{\max}(\Lambda)
+&=
+\min\bigl\{P(X{=}0),\,\Lambda p_{11},\,P(X{=}0)-p_{10}/\Lambda\bigr\},
+\\
+S_{\min}(\Lambda)
+&=
+\max\bigl\{0,\,p_{11}/\Lambda,\,P(X{=}0)-\Lambda p_{10}\bigr\}.
+\end{align*}
+Substituting the cells of~\eqref{eq:re1} produces
+\[
+u(\Lambda)=0.85-\frac{0.15}{\Lambda},
+\qquad
+\ell(\Lambda)
+=
+\begin{cases}
+0.85-0.15\Lambda, & 1\le\Lambda\le 7/3,\\
+0.35\,(1+\Lambda^{-1}), & \Lambda\ge 7/3.
+\end{cases}
+\]
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[x=1.45cm,y=6.0cm,>=Stealth]
+  \fill[blue!8] plot[domain=1:7/3,samples=30] (\x,{0.85-0.15/\x})
+     -- plot[domain=7/3:1,samples=30] (\x,{0.85-0.15*\x}) -- cycle;
+  \fill[blue!8] plot[domain=7/3:7,samples=40] (\x,{0.85-0.15/\x})
+     -- plot[domain=7:7/3,samples=40] (\x,{0.35*(1+1/\x)}) -- cycle;
+  \draw[->] (0.8,0.30) -- (7.4,0.30) node[right,font=\small] {$\Lambda$};
+  \draw[->] (0.8,0.30) -- (0.8,0.92) node[above,font=\small] {$P(Y_1{=}1)$};
+  \foreach \x in {1,2,3,4,5,6,7}
+    \draw (\x,0.30) -- (\x,0.292) node[below,font=\scriptsize] {\x};
+  \foreach \y in {0.35,0.40,0.55,0.70,0.85}
+    \draw (0.8,\y) -- (0.77,\y) node[left,font=\scriptsize] {\y};
+  \draw[dashed,black!40] (0.8,0.85) -- (7.2,0.85);
+  \draw[dashed,black!40] (0.8,0.35) -- (7.2,0.35);
+  \draw[dotted,black!60] (0.8,0.40) -- (7.2,0.40);
+  \draw[very thick,blue!70!black,domain=1:7,samples=60] plot (\x,{0.85-0.15/\x});
+  \draw[very thick,red!70!black,domain=1:7/3,samples=30] plot (\x,{0.85-0.15*\x});
+  \draw[very thick,red!70!black,domain=7/3:7,samples=40] plot (\x,{0.35*(1+1/\x)});
+  \fill (1,0.70) circle (1.5pt);
+  \node[font=\scriptsize,anchor=south west] at (5.0,0.825) {$u(\Lambda)$};
+  \node[font=\scriptsize,anchor=north west] at (3.6,0.455) {$\ell(\Lambda)$};
+  \node[font=\scriptsize,anchor=west,black!60] at (7.2,0.85) {Manski $u$};
+  \node[font=\scriptsize,anchor=west,black!60] at (7.2,0.35) {Manski $\ell$};
+  \node[font=\scriptsize,anchor=west,black!60] at (7.2,0.40) {untreated rate};
+\end{tikzpicture}
+\caption{Sharp interval for $P(Y_1{=}1)$ on~\eqref{eq:re1} under an anchored
+Tan budget $\Lambda$. At $\Lambda=1$ the effect is identified at $0.70$; the
+lower bound falls to the untreated employment rate $0.40$ at $\Lambda=7$.}
+\label{fig:msm-intro}
+\end{figure}
+
+\subsection{Manski and MTR}
+\label{app:manski}
+
+On a binary bow the natural bounds and the monotone-treatment-response bounds are
+\begin{equation}
+\label{eq:manski}
+P(X{=}x,Y{=}y)\;\le\;P(Y_x{=}y)\;\le\;P(X{=}x,Y{=}y)+1-P(X{=}x),
+\end{equation}
+\begin{equation}
+\label{eq:mtr}
+P(Y{=}1)\;\le\;P(Y_1{=}1)\;\le\;P(X{=}1,Y{=}1)+P(X{=}0).
+\end{equation}
+
+\begin{proof}[Proof of~\eqref{eq:manski} and~\eqref{eq:mtr}]
+On the binary bow the observational map partitions types into four
+fibers, one per cell of $P$. For $Q=P(Y_1{=}1)$, types in the
+$X{=}1$ fibers have $Y_1$ pinned to the observed $Y$; types in the
+$X{=}0$ fibers have $Y_1$ free in $\{0,1\}$. Maximizing $Q$ assigns
+$Y_1{=}1$ on all free mass $P(X{=}0)$; minimizing assigns $Y_1{=}0$.
+Hence $\ell=p_{11}$, $u=p_{11}+P(X{=}0)$, width $1-P(X{=}1)$. For finite
+$X$ and $Y$ the same fiber argument applies: types with $X=x$ have $Y_x$
+pinned to the observed $Y$, and types with $X\neq x$ leave $Y_x$ free. This
+gives $P(x,y)\le P(Y_x{=}y)\le P(x,y)+1-P(X{=}x)$.
+
+MTR zeros every type with $Y_1<Y_0$. A unit in the cell
+$(X,Y)=(0,1)$ already has $Y_0{=}1$, so $Y_1$ is forced to $1$ and
+that cell is no longer free. The only remaining free mass is
+$P(X{=}0,Y{=}0)$, and the width is $p_{00}$. On~\eqref{eq:re1} this
+is the interval $[0.55,0.85]$.
+\end{proof}
+
+\subsection{Monotonicity and interpolation}
+\label{app:mono}
+
+Intersecting the feasible set with a further constraint can only shrink
+the image of $Q$, or make the program infeasible.
+
+\begin{corollary}[Interpolation of linear or convex budgets]
+\label{cor:interp}
+For an anchored linear or convex sensitivity model with budget
+$\rho$, the width $w(P;a,\rho)$ is nondecreasing in $\rho$. It
+interpolates the no-unobserved-confounding pole (when that pole is
+point-identified for an interventional query) and the Manski width as
+$\rho\to\infty$.
+\end{corollary}
+
+\begin{proof}
+Nested feasible sets give monotonicity: a larger budget admits every
+model the smaller budget admits.
+Continuity in $\rho$ for linear faces follows because the
+right-hand side depends continuously (in fact linearly) on the
+budget. The two poles are the Markovian program ($\rho$ at its
+no-confounding value) and the order-only program ($\rho\to\infty$).
+\end{proof}
+
+\clearpage
+\section{Further instances of the theorem}
+\label{sec:instances}
+
+The expansions below are the checks that the conditions of \cref{thm:lp}
+are met, or fail, on the graphs used in the text.
+
+\subsection{Independent latents}
+\label{sec:product}
+
+Confounding is recorded by \emph{latent hyperedges}: each hyperedge $h$ is one
+exogenous source that enters the equations of every variable in $h$. A
+bidirected edge $A\leftrightarrow B$ is the pair $\{A,B\}$. Two overlapping
+bidirected edges are two hyperedges, not one. The connected components of the
+undirected graph with those edges as links are the
+\emph{$c$-components} \citep{tian2002general}. Distinct hyperedges have
+independent latents by default. The canonical law is the tensor product of one
+probability vector per hyperedge (and one for the private noise of each
+unconfounded variable). We call this the \emph{hyperedge product
+parameterization}. It is not the same as placing one free joint type law on
+each $c$-component, as in \cref{def:canonical_scm}: a pair-chain
+$c$-component with two hyperedges is a product of two simplices, whereas a
+single oval over the same nodes is one simplex.
+
+For a $c$-component $C$ write $\lambda(C)$ for the number of independent
+latents that enter it: the number of hyperedges that meet $C$, or $1$ if
+$C=\{V\}$ is an unconfounded singleton (its private noise). A bow, an oval, and
+an unconfounded singleton have $\lambda=1$; the pair chain has $\lambda=2$.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[>=Stealth, every node/.style={circle,draw,inner sep=1.5pt,font=\small,minimum size=1.15em}]
+  \begin{scope}[local bounding box=A]
+    \node (X) at (0,0) {$X$};
+    \node (Y) at (1.6,0) {$Y$};
+    \draw[->] (X) -- (Y);
+    \draw[<->,dashed] (X) to[bend left=42] (Y);
+  \end{scope}
+  \node[font=\small,anchor=north,draw=none] at ($(A.south)+(0,-0.15)$) {(a) bow};
+
+  \begin{scope}[shift={(4.0,0)}, local bounding box=B]
+    \node (Z) at (0,0) {$Z$};
+    \node (X) at (1.5,0) {$X$};
+    \node (Y) at (3.0,0) {$Y$};
+    \draw[->] (Z) -- (X);
+    \draw[->] (X) -- (Y);
+    \draw[<->,dashed] (X) to[bend left=42] (Y);
+  \end{scope}
+  \node[font=\small,anchor=north,draw=none] at ($(B.south)+(0,-0.15)$) {(b) IV};
+
+  \begin{scope}[shift={(0,-2.35)}, local bounding box=C]
+    \node (X) at (0,0) {$X$};
+    \node (W) at (1.5,0) {$W$};
+    \node (Y) at (3.0,0) {$Y$};
+    \draw[->] (X) -- (W);
+    \draw[->] (W) -- (Y);
+    \draw[<->,dashed] (X) to[bend left=40] (W);
+    \draw[<->,dashed] (W) to[bend left=40] (Y);
+  \end{scope}
+  \node[font=\small,anchor=north,draw=none] at ($(C.south)+(0,-0.15)$) {(c) pair chain};
+
+  \begin{scope}[shift={(5.2,-2.35)}, local bounding box=D]
+    \node (X) at (0,0) {$X$};
+    \node (W) at (1.5,0) {$W$};
+    \node (Y) at (3.0,0) {$Y$};
+    \draw[->] (X) -- (W);
+    \draw[->] (W) -- (Y);
+    \draw[dashed] (0.15,0.55) .. controls (1.5,1.25) .. (2.85,0.55);
+    \node[draw=none,font=\scriptsize,black!55] at (1.5,1.22) {$U$};
+  \end{scope}
+  \node[font=\small,anchor=north,draw=none] at ($(D.south)+(0,-0.15)$) {(d) one oval};
+\end{tikzpicture}
+\caption{Four latent drawings. (a)~One shared latent: LP in a single simplex.
+(b)~Unconfounded instrument and a bow on $\{X,Y\}$: two $c$-components, of
+which the query reads only $\{X,Y\}$. (c)~Two pairwise latents: a product of
+two simplices in the latent laws, yet still an LP in the joint law of the
+response types (\cref{prop:lift}). (d)~Same directed chain, one shared latent:
+one simplex, LP. The directed skeleton does not decide the number of
+factors.}
+\label{fig:four-graphs}
+\end{figure}
+
+\begin{table}[ht]
+\centering
+\caption{Response types of the binary bow $\G:\{X\to Y,\, X\leftrightarrow Y\}$.
+$R_X$ is the value of $X$, and $R_Y=(Y_0,Y_1)$. The factual cell is
+$(X,Y)=(R_X,Y_{R_X})$.}
+\label{tab:types}
+\small
+\begin{tabular}{@{}cccccc@{}}
+\toprule
+$(R_X,R_Y)$ & $X$ & $Y_0$ & $Y_1$ & Factual cell & In $P(Y_1{=}1)$? \\
+\midrule
+$(0,00)$ & $0$ & $0$ & $0$ & $(0,0)$ & no \\
+$(0,01)$ & $0$ & $0$ & $1$ & $(0,0)$ & yes \\
+$(0,10)$ & $0$ & $1$ & $0$ & $(0,1)$ & no \\
+$(0,11)$ & $0$ & $1$ & $1$ & $(0,1)$ & yes \\
+$(1,00)$ & $1$ & $0$ & $0$ & $(1,0)$ & no \\
+$(1,01)$ & $1$ & $0$ & $1$ & $(1,1)$ & yes \\
+$(1,10)$ & $1$ & $1$ & $0$ & $(1,0)$ & no \\
+$(1,11)$ & $1$ & $1$ & $1$ & $(1,1)$ & yes \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{example}[Encouragement design: reduction to Balke--Pearl]
+\label{ex:iv-lp}
+A randomized offer $Z$ encourages enrollment $X$ in a programme with outcome
+$Y$ (\cref{sec:ill-designs}). This is the left/right split of
+\citet[Proposition~2]{symbolicbounds2023general}.
+The equations are $Z=f_Z(U_Z)$, $X=f_X(Z,U)$, $Y=f_Y(X,U)$ with
+$U_Z\perp U$ (\cref{fig:four-graphs}b). The $c$-components are $\{Z\}$
+(their $W_L$) and $\{X,Y\}$ (their $W_R$): every arrow between them is
+$Z\to X$, and no latent meets both. The
+instrument has its own type $R_Z\in\{0,1\}$, pinned by $P(Z)$. The
+types of $\{X,Y\}$ are the eight bow types of \cref{tab:types}, except
+$R_X$ is now a map $\{0,1\}\to\{0,1\}$ (four compliance types:
+never-taker, complier, defier, always-taker), so this $c$-component has
+$4\times 4=16$ masses $q(r_X,r_Y)$. Expand:
+\begin{align}
+\label{eq:iv-exp}
+P(Y_x{=}y)
+&=
+\sum_{r_X,r_Y}
+\ind[r_Y(x)=y]\,q(r_X,r_Y),
+\\
+P(x,y\mid z)
+&=
+\sum_{r_X,r_Y}
+\ind[r_X(z)=x]\,\ind[r_Y(x)=y]\,q(r_X,r_Y).
+\nonumber
+\end{align}
+The query does not depend on $R_Z$. For each level $z$ the conditional
+$P(x,y\mid z)$ is a linear image $A_z q$ of the same $q$, exactly as
+their $p=Pq$. The joint factors as
+$P(z,x,y)=P(z)\,P(x,y\mid z)$; matching the joint is equivalent to
+matching those conditionals. The reduced program is therefore the LP
+\begin{equation}
+\label{eq:iv-lp}
+\min/\max_q\;
+c^\top q
+\quad\text{s.t.}\quad
+A_z q=P(\,\cdot\mid z)
+\text{ for each }z,\quad
+q\ge 0,\quad
+\mathbf{1}^\top q=1.
+\end{equation}
+This is Balke--Pearl. The same reduction holds when the instrument block is
+itself confounded (their Condition~3 fails): it is then a $c$-component with
+its own latent that the query does not read, and it only has to reproduce
+$P(z)$ (\cref{thm:lp}).
+\end{example}
+
+\begin{example}[Pair chain]
+\label{ex:pair}
+On $X\to W\to Y$ with hyperedges $\{X,W\}$ and $\{W,Y\}$
+(\cref{fig:four-graphs}c) the two latents $U_1\perp U_2$ both meet $W$, so
+$\{X,W,Y\}$ is one $c$-component with $\lambda=2$. Evaluating along the
+chain,
+\begin{align}
+\label{eq:pair}
+P(x,w,y)
+&=
+\sum_{u_1,u_2}
+\ind[f_X(u_1)=x]\,
+\ind[f_W(x,u_1,u_2)=w]\,
+\ind[f_Y(w,u_2)=y]\,
+p_1(u_1)p_2(u_2),
+\\
+P(Y_x{=}1)
+&=
+\sum_{u_1,u_2}
+\ind\bigl[f_Y\bigl(f_W(x,u_1,u_2),u_2\bigr)=1\bigr]
+p_1(u_1)p_2(u_2).
+\nonumber
+\end{align}
+Every summand is a product $p_1(u_1)p_2(u_2)$, and neither factor is
+pinned by a margin of $P$: written in $(p_1,p_2)$ the program is bilinear.
+In the joint law of the response types the same constraint is the linear
+independence of \cref{lem:two}, so the sharp program is an LP
+(\cref{prop:lift}). The same directed chain with one hyperedge
+$\{X,W,Y\}$ (\cref{fig:four-graphs}d) is one simplex.
+\end{example}
+
+
+\subsection{Query and assumption classes}
+\label{sec:labels}
+
+Solver choice depends on the graph and on the algebraic class of the query
+and of the assumptions. Linear assumptions are \cref{def:labels}, and
+syntactically linear queries (\cref{def:linear-query}) are distinct from
+linearity of the objective after pinning and removal (\cref{def:linearity}).
+
+A counterfactual event is a conjunction of factual or potential-outcome literals
+(nested potential outcomes are allowed as syntax). Linear queries (\cref{def:linear-query})
+therefore include single-world effects $P(Y_x)$ and
+$\mathrm{ATE}=P(Y_1)-P(Y_0)$; cross-world events such as
+$\mathrm{PNS}=P(Y_1{=}1,Y_0{=}0)$; PN and PS, whose denominator is an
+observational cell of $P$; and sums of counterfactual events such as $P(Y_x)+P(W_z)$.
+Outside the class are a product of queries, a nonlinear functional of
+several counterfactual events, and a conditional whose denominator is a free combination
+of type masses.
+
+\begin{example}[Unanchored Rosenbaum $\Gamma$]
+\label{ex:gamma}
+Unanchored Rosenbaum $\Gamma$ is the witness that one simplex is not enough:
+on the single simplex of \cref{ex:bow} the pairwise odds bound
+\begin{equation}
+\label{eq:gamma}
+q(1,r)\,q(0,r')
+\le
+\Gamma\,q(0,r)\,q(1,r')
+\end{equation}
+is bilinear in $q$. Anchoring every type's odds to the observed propensity
+removes the product and yields the Tan MSM of \cref{fig:msm-intro}
+(\cref{app:msm}).
+\end{example}
+
+
+\begin{example}[Two bows: additive versus conjunctive queries]
+\label{ex:two-bows}
+Take $X=f_X(U_1)$, $Y=f_Y(X,U_1)$, $Z=f_Z(Y,U_2)$, $W=f_W(Z,U_2)$ with
+$U_1\perp U_2$: two bows $\{X,Y\}$ and $\{Z,W\}$ joined by $Y\to Z$.
+For $Q=P(Y_x{=}1)+P(W_z{=}1)$,
+\begin{align*}
+P(Y_x{=}1)
+&=
+\sum_{u_1}\ind[f_Y(x,u_1)=1]\,P(U_1{=}u_1),
+&
+P(W_z{=}1)
+&=
+\sum_{u_2}\ind[f_W(z,u_2)=1]\,P(U_2{=}u_2),
+\end{align*}
+so $Q=c_1^\top q_1+c_2^\top q_2$ and each counterfactual event reads one $c$-component. The
+observational law factors as $P(x,y,z,w)=P(x,y)\,P(z,w\mid y)$ with
+\begin{align*}
+P(x,y)&=\sum_{u_1}\ind[f_X(u_1)=x]\,\ind[f_Y(x,u_1)=y]\,P(U_1{=}u_1),\\
+P(z,w\mid y)&=\sum_{u_2}\ind[f_Z(y,u_2)=z]\,\ind[f_W(z,u_2)=w]\,P(U_2{=}u_2),
+\end{align*}
+one $c$-factor per bow, each linear in one simplex. The program is two
+Balke--Pearl LPs stacked side by side.
+The \emph{conjunction} $P(Y_x{=}1,W_z{=}1)=(c_1^\top q_1)(c_2^\top q_2)$
+on the same graph is one counterfactual event that reads both $c$-components.
+The equations of either bow do not fix the corresponding factor, so linearity
+fails and \cref{thm:lp} does not apply.
+\end{example}
+
+Syntactic linearity (\cref{def:linear-query}) is not a licence for every counterfactual. Mediated PNS
+on $X\leftrightarrow W\to Y$ is one counterfactual event $P(Y_1{=}1,Y_0{=}0)$ that reads
+$\{X,W\}$ and evaluates $Y$ in two worlds, so pinning fails on $Y$ and linearity (\cref{def:linearity}) fails.
+
+\paragraph{Two coupled hyperedges.}
+\Cref{lem:two} turns two instances that a product parameterization would
+call bilinear into LPs.
+
+\begin{corollary}[Exact LPs for two coupled hyperedges]
+\label{prop:lift}
+\leavevmode
+\begin{enumerate}[label=(\alph*),leftmargin=1.6em,itemsep=0.2em]
+\item \emph{Pair chain} (\cref{ex:pair}). Here $S_1=\{X\}$, $S_{12}=\{W\}$,
+$S_2=\{Y\}$, and $X$ is a root. For every linear query on $(X,W,Y)$---in
+particular $P(Y_x)$, the ATE, and PNS---the sharp bounds are the LP of
+\cref{thm:lp} in the masses $q(x,r_W,r_Y)$, with the single constraint
+\begin{equation}
+\label{eq:lift}
+\sum_{r_W}q(x,r_W,r_Y)=P(X{=}x)\sum_{x',r_W}q(x',r_W,r_Y)
+\quad\text{for all }x,r_Y.
+\end{equation}
+\item \emph{Instrument confounded with the treatment}: $Z\to X\to Y$ with
+hyperedges $\{Z,X\}$ and $\{X,Y\}$, and no $Z\to Y$. Here $S_1=\{Z\}$ is a
+root, so the sharp bounds are an LP. For every query that depends only on
+the outcome's response type---$P(Y_x)$, the ATE, PNS---they equal the
+Balke--Pearl LP~\eqref{eq:iv-lp} of \cref{ex:iv-lp}.
+\end{enumerate}
+\end{corollary}
+
+\begin{proof}[Proof of \cref{prop:lift}]
+\emph{(a) Pair chain.}
+\textit{SCM.} $X=f_X(U_1)$, $W=f_W(X,U_1,U_2)$, $Y=f_Y(W,U_2)$, with
+$U_1\perp U_2$; $S_1=\{X\}$, $S_{12}=\{W\}$, $S_2=\{Y\}$.
+\textit{Query and data.} In the masses $q(x,r_W,r_Y)$,
+\begin{align*}
+P(Y_x{=}y)&=\sum_{x',r_W,r_Y}\ind[r_Y(r_W(x))=y]\,q(x',r_W,r_Y),\\
+P(x,w,y)&=\sum_{r_W,r_Y}\ind[r_W(x)=w]\,\ind[r_Y(w)=y]\,q(x,r_W,r_Y),
+\end{align*}
+and PNS is the same sum with $\ind[r_Y(r_W(1))=1,\,r_Y(r_W(0))=0]$.
+\textit{Reduction.} $X$ is a root, so \cref{lem:two} gives the linear
+constraint~\eqref{eq:two}, which here is~\eqref{eq:lift}. The query reads one
+$c$-component, and \cref{thm:lp} applies.
+
+\emph{(b) Instrument confounded with the treatment.}
+\textit{SCM.} $Z=f_Z(U_1)$, $X=f_X(Z,U_1,U_2)$, $Y=f_Y(X,U_2)$, with
+$U_1\perp U_2$; $S_1=\{Z\}$ is a root, so \cref{thm:lp} applies as in~(a).
+
+\textit{Comparison with Balke--Pearl.} The classical IV model of
+\cref{ex:iv-lp} imposes $Z\perp(R_X,R_Y)$, which is stronger than
+$Z\perp R_Y$, so its interval is contained in ours. Conversely, take a
+feasible $q(z,r_X,r_Y)$, write $\nu$ for the law of $R_Y$, and set
+$\kappa_z(x\mid r_Y)=q(X{=}x\mid Z{=}z,R_Y{=}r_Y)$. Put
+$\tilde q(r_X,r_Y)=\nu(r_Y)\prod_z\kappa_z(r_X(z)\mid r_Y)$, which draws the
+coordinates $r_X(z)$ independently given $R_Y$. Then
+$\tilde q(r_X(z){=}x,\,r_Y)=\nu(r_Y)\,\kappa_z(x\mid r_Y)=q(X{=}x,r_Y\mid z)$,
+using $Z\perp R_Y$. So $\tilde q$ reproduces every $P(x,y\mid z)$ with the same law
+of $R_Y$. The two models produce the same pairs of data and laws of $R_Y$, and
+any query that depends only on $R_Y$ has the same sharp bounds in both.
+\end{proof}
+
+Part~(b) says that letting the instrument share a latent with the
+treatment (but not with the outcome) leaves the Balke--Pearl bounds
+unchanged; on the instrument table of \cref{sec:ill-designs} the package
+returns the Balke--Pearl interval $[0.283,0.615]$ for both graphs. For
+part~(a), the table is~\eqref{eq:re2}, whose $(X,Y)$-margin is~\eqref{eq:re1}. The LP of part~(a)
+gives $[0.350,0.850]$ for $P(Y_1{=}1)$ and $[0.000,0.600]$ for PNS. One
+hyperedge on $\{X,W,Y\}$ gives the same interval for $P(Y_1{=}1)$ but
+$[0.000,0.650]$ for PNS: here the independence of the two latents narrows
+PNS but not the interventional probability.
+
+\paragraph{Non-ancestors.}
+The query only uses the mechanisms of $\An(V_Q)$, yet the data of other
+variables can matter.
+
+\begin{proposition}[Dropping non-ancestors]
+\label{prop:trim}
+Let $A=\An(V_Q)$. The interval computed from the subgraph induced by $A$
+(each hyperedge intersected with $A$) and the margin $P(\mathbf{v}_A)$
+contains the identified interval. If no hyperedge meets both $A$ and its
+complement and the full program is feasible, the two intervals coincide.
+\end{proposition}
+
+\begin{proof}[Proof of \cref{prop:trim}]
+Take any model on $\G$ that reproduces $P$ and obeys the assumptions. The variables of
+$A=\An(V_Q)$ read only parents in $A$ and the latents of hyperedges that meet
+$A$. Keep those mechanisms and latents, and intersect each hyperedge with
+$A$. The result is a model on the induced subgraph that reproduces
+$P(\mathbf{v}_A)$ and has the same value of $Q$, because $Q$ uses only the
+mechanisms of $A$. So every value in the identified interval is feasible for
+the trimmed program. If no hyperedge meets both $A$ and its complement, $A$ is
+a union of $c$-components, and by Step~1 of the proof of \cref{thm:lp} the
+complement is a separate block that the query does not read: any trimmed model
+combines with a feasible complement block into a full model.
+\end{proof}
+
+\begin{example}[A descendant that matters]
+\label{ex:desc}
+Take $X\to Y\to D$ with hyperedges $\{X,Y\}$ and $\{X,D\}$, and
+$Q=P(Y_1{=}1)$. The equations are $X=f_X(U_1,U_2)$, $Y=f_Y(X,U_1)$,
+$D=f_D(Y,U_2)$ with $U_1\perp U_2$. The query
+$P(Y_1{=}1)=\sum_{u_1}\ind[f_Y(1,u_1)=1]P(U_1{=}u_1)$ does not involve $U_2$,
+and $D$ is not an ancestor of $Y$. Dropping $D$ leaves the bow, whose sharp
+interval is Manski on $P(x,y)$. But $\{X,Y,D\}$ is one $c$-component with
+$\lambda=2$, $S_1=\{Y\}$, $S_{12}=\{X\}$, $S_2=\{D\}$: the treatment reads
+$U_2$, the descendant $D$ reveals information about $U_2$, and the
+independence $R_Y\perp R_D$ of \cref{lem:two} then restricts how $X$ can
+depend on $R_Y$. Neither hyperedge contains both variables with a parent, so covering fails and the
+constraint stays bilinear. On the table with cells
+$P(x,y,d)$, in the order $000,001,\ldots,111$,
+$(0.046,0.010,0.047,0.498,0.103,0.279,0.010,0.007)$, dropping $D$ gives
+$[0.017,0.618]$, whereas the full model gives an interval inside
+$[0.021,0.583]$ (\cref{app:witnesses}).
+\end{example}
+
+\paragraph{Outside the theorem.}
+When a component has three or more hyperedges, \cref{thm:lp} does not apply;
+\cref{app:beyond} records the obstructions that survive at every size.
+Within two hyperedges, failure of linearity leaves a product of the remaining
+response laws. \Cref{prop:lift} is the covering case of two latents: the
+program is linear in the joint response types, while a product parameterization
+of the same latents is bilinear.
+
+
+\subsection{Beyond two hyperedges}
+\label{app:beyond}
+
+The three properties used in the proof of \cref{thm:lp} --- a saturated removed component, a polytope fiber for every table, and a linear objective --- remain necessary and sufficient on any diagram. The graphical tests are proved when every component has at most two hyperedges. Past that bound, two obstructions to saturation survive at every number of hyperedges.
+
+If $A$ and $B$ lie in one component, no hyperedge contains both, and neither $A\to B$ nor $B\to A$ is present, the table of \cref{lem:cross} is impossible. The same table, with an outside parent binary and equal to $1$ with probability $\tfrac12$ and with the downstream variable set equal to it, shows that reachability stays necessary at every number of hyperedges.
+
+If $S$ is a set of two or more variables in the component, no one an ancestor of another, and no hyperedge contains $S$, the table in which every variable of $S$ equals one binary variable that equals $1$ with probability $\tfrac12$, and every other variable equals $0$, is impossible. A parent of a variable in $S$ cannot lie in $S$, so every such parent equals $0$, and each variable of $S$ is a function of the hidden causes through it. Those functions agree. \Cref{lem:agree}, applied to each pair and then through $S$, puts that common value on a hidden cause whose hyperedge contains every member of $S$. There is no such hyperedge.
+
+Both obstructions are necessary. They are not sufficient at four variables. The chain $A\to B\to C\to D$ with hyperedges $\{A,C\}$, $\{A,D\}$, and $\{B,D\}$ has a direct edge or a shared hyperedge for every pair, and a chain has no antichain of size two or more. It is not saturated. The equations are $A=f(U,V)$, $B=\beta(W)$, $C=h(B,U)$, and $D=k(C,V,W)$, with $U\perp V\perp W$. If $B\perp A$ and $D=A$, then at each value of $B$ the variable $A$ is a function of $(h(B,U),V)$, so \cref{lem:gap} applies with conditioning variable $B$ and inner variable $C$. The absolute gap of $P(C\mid A,B)$ is the same at every value of $B$, or both gaps are $0$. The binary table with $A$ and $B$ independent and each equal to $1$ with probability $\tfrac12$, $D=A$, and gaps $-0.7$ and $-0.5$ is therefore impossible.
+
+On the fiber side, the same boundary is open. If at least two variables have a parent and every hyperedge misses at least one of them, the zero configuration has a fiber that is not a polytope: the point mass on the constant-$0$ response and the point mass on the response that sends one parent value $0$ to $0$ and another to $1$ both reproduce that table, and their average shares one bit across every variable with a parent. \Cref{lem:agree} puts that bit on a cause heard by all of them, and no hyperedge contains them all. A graphical list of the components whose fiber is a polytope for every table, once three or more hyperedges are allowed, is open.
+
+\subsection[Relation to Sachs et al.]{Relation to \citet{symbolicbounds2023general}}
+\label{sec:sachs}
+
+\citet[Proposition~2]{symbolicbounds2023general} give a sufficient class for
+a tight linear program in a joint type law $q=P(R_R)$. They require a
+bipartition $\mathbf{W}=W_L\cup W_R$ such that
+\begin{enumerate}[label=(\arabic*),leftmargin=1.6em,itemsep=0.15em]
+\item every edge joining $W_L$ to $W_R$ is directed $W_L\to W_R$;
+\item no unmeasured variable has children in both sides;
+\item all of $W_L$ share one unmeasured parent $U_L$;
+\item all of $W_R$ share one unmeasured parent $U_R$.
+\end{enumerate}
+The query must then be a linear functional of that same $q$.
+Conditions~(1)--(2) say that $W_L$ is a union of $c$-components that the
+query does not read. Conditions~(3)--(4) say that each side carries one
+latent. \Cref{thm:lp} drops both: the unread block need not be one latent,
+further $c$-components may be pinned (\cref{lem:middle}), a read
+$c$-component may carry two latents (\cref{lem:two}), and identification may
+reduce the program to a point. Every instance that meets their four
+conditions with a linear-in-$q_R$ query meets \cref{thm:lp}. The inclusion
+is strict.
+
+\begin{example}[Mediated confounding: linear here, outside their class]
+\label{ex:mediated}
+Take $X\to W\to Y$ with a hyperedge only on $\{X,W\}$ (the directed chain of
+\cref{fig:four-graphs}c with the $\{W,Y\}$ edge deleted). The equations are
+$X=f_X(U)$, $W=f_W(X,U)$, $Y=f_Y(W,U_Y)$ with $U\perp U_Y$. The query is
+$Q=P(Y_x{=}1)$. Expanding,
+\begin{align}
+\label{eq:mediated}
+P(Y_x{=}1)
+&=
+\sum_w P(Y{=}1\mid W{=}w)\,P(W_x{=}w),
+\\
+P(W_x{=}w)
+&=
+\sum_u
+\ind[f_W(x,u)=w]\,P(U{=}u).
+\nonumber
+\end{align}
+The outcome is used in one world, so \cref{lem:middle} pins it to the
+kernel $P(Y\mid W)$, and the model requires $Y\perp X\mid W$. What remains
+is an LP in the single simplex $P(U)$: a Balke--Pearl program on the
+$\{X,W\}$ bow, averaged against the observed kernel. The query reads one
+$c$-component besides the pinned $Y$, so \cref{thm:lp} applies.
+
+No bipartition satisfies their (1)--(4) with $Q$ linear in $q_R$.
+\begin{itemize}[leftmargin=1.4em,itemsep=0.15em]
+\item $W_L=\emptyset$, $W_R=\{X,W,Y\}$. Condition~(4) fails: $Y$ does not
+share $U$ with $X$ and $W$.
+\item $W_L=\{X\}$, $W_R=\{W,Y\}$. Condition~(2) fails: the latent on
+$\{X,W\}$ meets both sides.
+\item $W_L=\{X,W\}$, $W_R=\{Y\}$. Conditions~(1)--(4) can hold, but
+$Q=P(Y_x)$ is not a linear functional of $q_Y=P(R_Y)$ alone: it depends on
+the law of $W_x$, which lives on the $L$-side types.
+\end{itemize}
+Running their Algorithm~1 on a free joint over $(R_X,R_W,R_Y)$ would allow
+$U_Y$ to depend on $U$---a different model, not sharp for $U\perp U_Y$. On
+the table~\eqref{eq:re3} of \cref{sec:ill-solver} the free joint gives
+$[0.270,0.770]$, whereas the sharp interval under $U\perp U_Y$ is
+$[0.470,0.570]$.
+\end{example}
+
+A smaller gap is their Condition~(3) alone. Two independent instruments
+$Z_1,Z_2\to X\to Y$ with $X\leftrightarrow Y$ and $Z_1\perp Z_2$ violate
+(3) ($Z_1$ and $Z_2$ do not share one $U_L$), yet they are two
+$c$-components that the query does not read, and \cref{thm:lp} still yields
+the Balke--Pearl LP in $P(U)$.
+
+\clearpage

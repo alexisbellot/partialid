@@ -1,0 +1,93 @@
+\subsection{Comparison with Autobounds}
+\label{app:autobounds}
+
+Autobounds \citep{duarte2024automated} encodes the canonical model as a
+polynomial program and optimizes it by spatial branch-and-bound. \Cref{thm:lp}
+decides, before any solver is called, when that program is a
+point or a linear program. This subsection runs both packages on the examples of
+\cref{sec:illustrations} that are small enough for the general solver to
+finish in seconds. The intervals agree. The difference is the time, and it
+tracks the classification.
+
+\begin{table}[ht]
+\centering
+\caption{One call of each package on the same table, graph, and query.
+Times are wall-clock on a laptop. The Autobounds call for the mediated graph
+was stopped at a limit of $25\,\mathrm{s}$; its primal and dual endpoints
+agree, so the returned interval is certified. On the front door the two
+Autobounds endpoints differ by about $0.002$ and both round to $0.65$.}
+\label{tab:autobounds}
+\small
+\begin{tabular}{@{}lllr@{}}
+\toprule
+Example & Interval & \pid{} & Autobounds \\
+\midrule
+Bow, $P(Y_1{=}1)$ on~\eqref{eq:re1} & $[0.350,0.850]$ & $<1\,\mathrm{ms}$ & $0.6\,\mathrm{s}$ \\
+Bow, monotone response & $[0.550,0.850]$ & $1\,\mathrm{ms}$ & $0.5\,\mathrm{s}$ \\
+Markovian bow, $P(Y_1{=}1)$ & $0.700$ & $1\,\mathrm{ms}$ & $0.5\,\mathrm{s}$ \\
+Instrument, seed $2$ & $[0.283,0.615]$ & $14\,\mathrm{ms}$ & $0.5\,\mathrm{s}$ \\
+Front door & $0.650$ & $1\,\mathrm{ms}$ & $5.5\,\mathrm{s}$ \\
+Mediated chain on~\eqref{eq:re3} & $[0.470,0.570]$ & $1\,\mathrm{ms}$ & $25\,\mathrm{s}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+On the bow, with or without monotone response, and on the instrument,
+\cref{thm:lp} leaves a single simplex: one $c$-component of $\lambda=1$, or,
+for the instrument, the unread component $\{Z\}$ dropped by the directed cut.
+The sharp interval is then a linear program, and on the binary bow and the
+binary instrument it is a closed form. Autobounds computes the same interval
+by branch-and-bound over the canonical parameterization. The answers match to
+three decimals, including the ATE rows omitted from \cref{tab:autobounds}
+($[-0.350,0.650]$ under the order alone and $[0.000,0.650]$ under monotone
+response), and the linear solver finishes in milliseconds rather than about
+half a second.
+
+The Markovian bow and the front door are the case $K=0$ of \cref{thm:lp}.
+The identification algorithm of \citet{shpitser2006identification} returns a
+functional of $P$, and \pid{} evaluates it. Autobounds does not
+take that branch: it builds and searches a program whose optimum happens to
+be a point. That search is cheap for the two-node bow and takes
+$5.5\,\mathrm{s}$ for the front door.
+
+The mediated chain is the instance where the theorem changes the program
+rather than only the solver. The graph is $X\to W\to Y$ with one latent on
+$\{X,W\}$, the table is~\eqref{eq:re3}, and the query is $P(Y_1{=}1)$. In the
+latent laws the outcome contributes a second factor, $P(U_Y)$. The event uses
+$Y$ in one world, so \cref{lem:middle} pins $Y$ to the kernel $P(Y\mid W)$
+and \cref{thm:lp} leaves an LP in $P(U)$ (\cref{ex:mediated}).
+\pid{} returns $[0.470,0.570]$ in about $1\,\mathrm{ms}$.
+Autobounds optimizes the unreduced program and returns the same interval at
+the $25\,\mathrm{s}$ limit, with the primal--dual gap closed. This is the
+same graph that lies outside the symbolic class of
+\citet{symbolicbounds2023general} (\cref{sec:sachs}).
+
+The same comparison shows a difference in how assumptions are stated. Monotone
+response is one named constraint, intersected with the causal order:
+\begin{lstlisting}
+a = Assumptions.order("X", "Y") & Assumptions.mtr("Y", "X")
+bound(V, P, Query.interventional(outcome="Y", do={"X": 1}, value=1), a)
+\end{lstlisting}
+The Autobounds call for the same row builds the confounded bow by hand and
+sets one response event to probability zero:
+\begin{lstlisting}
+dag = DAG("X -> Y, U -> X, U -> Y", unob="U")
+pro = causalProblem(dag)
+pro.add_assumption(pro.p("Y(X=1)=0&Y(X=0)=1"), "==", 0)
+pro.set_estimand(pro.p("Y(X=1)=1"))
+pro.load_data(summary=table)
+pro.solve()
+\end{lstlisting}
+Further assumptions in \pid{} are further names on the same
+object. \Cref{tab:catalog} is the list: an instrument, an anchored sensitivity
+budget, monotone selection, a support bound. The operator \texttt{\&}
+intersects them, and \cref{thm:lp} is re-checked on the intersection, so a
+constraint that preserves linearity stays on the linear-program path. In
+Autobounds each extra assumption is a polynomial constraint the user writes,
+and the solver does not change when that constraint happens to be linear.
+
+The comparison is confined to instances \cref{thm:lp} certifies. On a graph
+the criterion rejects, such as the latent triangle in \cref{tab:audit},
+\pid{} returns an outer interval with \texttt{tight=False}.
+Autobounds' branch-and-bound is the general method there, and we did not run
+it.

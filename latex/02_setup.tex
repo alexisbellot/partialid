@@ -1,0 +1,198 @@
+\section{Background}
+\label{sec:setup}
+
+The basic framework of our analysis rests on \textit{structural causal models} (SCMs) \citep[Def. 7.1.1]{pearl2009causality}, which formalize the notion of a data-generating process. In addition to specifying the distribution of data, these models also specify the generative mechanisms that produce them. For the purpose of causal inference and learning, SCMs provide a broad, fine-grained hypothesis space.
+
+An SCM $M$ is a tuple $\langle \V, \U, \1F, P \rangle$ where $\V$ is a set of endogenous variables and $\U$ is a set of exogenous variables. $\1F$ is a set of functions where each $f_V \in \1F$ decides values of an endogenous variable $V \in \V$ taking as argument a combination of other variables in the system. That is, $V \leftarrow f_{V}(PA_V, \U_V)$ where observed parents $PA_V \subseteq \V$ and unobserved parents $\U_V \subseteq \U$. An intervention $do(x)$ replaces the causal mechanism $f_{X}$ with the assignment $X \leftarrow x$ corresponding to a sub-model $\M_x$. We will use the counterfactual notation $Y_x(\u)$ to denote the value of the outcome $Y$ in $\M_x$ given $\U=\u$. Drawing values of exogenous variables $\U$ following the distribution $P(\U)$ induces a counterfactual variable $Y_x$. Specifically, the event $\Y_\x = \y$ (for short, $\y_\x$) can be read as ``$\Y$ would be $\y$ had $\X$ been $\x$''.
+
+With a given SCM $M$, for subsets $\Y, \dots ,\W, \X, \dots, \Z \subseteq \V$, the distribution over counterfactuals $\Y_\x, \dots ,\W_\z$ is defined as:
+\begin{equation}
+  \label{eq:counterfactual_probability}
+  P_M(\y_\x, \dots,  \w_\z) = \int \I\{\Y_\x(\u) = \y, \dots,  \W_\z(\u) = \w \} \ dP(\u).
+\end{equation}
+The problem formulation will be presented in the language of counterfactuals to encompass any causal or counterfactual statement of interest. For example, $P(\y_\x)$, the causal effect of $\{\X=\x\}$ on $\Y=\y$, is here considered a "single event" counterfactual $\{\y_\x\}$.
+
+Each SCM $M$ can be associated with a \textit{causal diagram} $\G$, where nodes represent endogenous variables $\V$, directed edges represent the arguments $PA_V$ of each function $f_{V}$, and \emph{latent hyperedges} $h\subseteq\V$ represent exogenous sources shared by every variable in $h$ (a bi-directed edge $A\leftrightarrow B$ is the pair $\{A,B\}$; distinct hyperedges carry mutually independent exogenous variables, and unconfounded variables carry independent private noises). We leverage the clustering of nodes in $\G$ into \emph{confounded components} (or $c$-components) from \citep{tian2002general}: the maximal subsets $\C \subseteq \V$ connected through the latent hyperedges of $\G$.
+  
+\begin{definition}[Counterfactual query]
+A counterfactual query is a functional of the probabilities of counterfactual events.
+\end{definition}
+  
+For example, $\{Y_x=y,\,X=x'\}$, $\{Y_{X=x,M_x=m}=y\}$, and $\{Z=z\}$ for $X,Y,Z,M\in\V$ and $x' \in \supp_X,y\in\supp_Y,z\in\supp_Z,m\in\supp_M$ are counterfactual events for which an SCM defines a probability assignment. Queries may be linear combinations of counterfactual events, such as the average treatment effect $P(y_{x})- P(y_{x'})$.
+
+\begin{definition}[Linear query]
+\label{def:linear-query}
+A query $Q$ is \emph{linear} if it is a linear combination of counterfactual events, or such a combination divided by an observational probability fixed by $P$.
+\end{definition}
+
+Throughout this paper, we assume that domains of endogenous variables $\V$ are \textbf{discrete and finite}; exogenous variables $\U$ could a priori take values in any (continuous) domain. The counterfactual probability $P(\Y_\x, \ldots, \Z_\w)$ defined in \Cref{eq:counterfactual_probability} is thus a categorical distribution. We use $\supp_V$ to denote the support of the distribution of $V \in \V$, and assume positivity: $P(\v)>0$ for every configuration $\v\in\supp_\V$.
+
+\subsection{Discrete Causal Models}
+In general systems, the set of functions $\{f_V:V\in\V\}$ between variables and probability measures $P(\U)$ that define an SCM $M$ may be arbitrary.
+
+For discrete observables $\V$, however, any set of counterfactuals derived from an SCM $M$ can be equivalently obtained from a canonical SCM $N$ parameterized by categorical probability mass functions $P(U), U\in\U$ with a finite and fixed cardinality $|\supp_U|, U\in\U$. This parameterization is known as the family of \emph{canonical} SCMs proposed in \citep[Def. 2.3]{zhang2022partial}.
+
+\begin{definition}[Canonical SCM]
+    \label{def:canonical_scm}
+    A canonical SCM is an SCM $N=\langle \U, \V, F,P(\u)\rangle$ defined as follows. The set of endogenous variables $\V$ is discrete. The set of exogenous variables $\U =\{R_V : V \in\V \}$, where $\supp_{R_V} = \{1, \dots , m_V\}$ and $m_V = |\{h_V : \supp_{PA_V} \to \supp_V \}|$. For each $V\in\V$, $f_V\in F$ is defined as $f_V(pa_V, u_V) = h_V^{(r_V)}(pa_V)$.
+    % A canonical SCM $M$ is an SCM parameterized by categorical probability mass functions $P(U), U\in\U$ with a finite and fixed cardinality,
+    % \begin{align}
+    %     |\supp_U| = \prod_{V \in \3C(U)} |\supp_{PA_V} \mapsto \supp_V|.
+    % \end{align}
+    % $|\supp_{PA_V} \mapsto \supp_V |$ denotes the number of functions from the (discretely-valued) parents of $V$ to the values of $V$. $\3C(U)$ denotes the $c$-component of $U$.
+\end{definition}
+
+The canonical parameterization is maximally expressive, that is, it can represent \emph{any} SCM $M$ with discrete observables $\V$ \citep[Thm. 2.4]{zhang2022partial}. Let $\R=\{R_V:V\in\V\}$ collect all exogenous variables in the canonical parameterization of $M$. Any counterfactual event can then be evaluated by the weighted sum of exogenous variables whose evaluation lands in that event:
+\begin{equation}
+  \label{eq:counterfactual_event_probability}
+  P_M(\y_\x, \dots,  \w_\z) = \sum_{\r\,:\,\Y_\x(\r) = \y, \dots,  \W_\z(\r) = \w } P_N(\r).
+\end{equation}
+On a causal diagram $\G$ with latent hyperedges, a canonical mechanism induces $P_N(\r)$ by expressing each $R_V$ as a function of the independent latents $(U_h)_{h\ni V}$ (or of a private noise when no hyperedge contains $V$), so distinct $c$-components factor as $P_N(\r)=\prod_C q_C(\r_C)$.
+
+\begin{example}[Binary bow graph]
+\label{ex:bow}
+Let $\1G:\{X \rightarrow Y, X \leftrightarrow Y\}$ with binary $X,Y \in \{0,1\}$. An SCM corresponding to this structure parameterized by dependent latent variables $R_X,R_Y$ with cardinality $|\supp_{R_X}| = 2, |\supp_{R_Y}| = 4$ is a canonical SCM. For illustration, encode $R_Y$ as pairs according to the assignment of $f_Y$; for example, $r_Y=(0,0)$ refers to the assignment: $h_Y^{(r_Y)}(x=0)=0, h_Y^{(r_Y)}(x=1)=0$, while $r_Y=(0,1)$ refers to the assignment: $h_Y^{(r_Y)}(x=0)=0, h_Y^{(r_Y)}(x=1)=1$. The joint $\R$ space has $2\times 4=8$ points that fully define all probabilities implied by the SCM. In this particular example, $P(\r)$ can be interpreted as defining the joint counterfactual probability $P(Y_0{=}a, Y_1{=}b, X{=}x)$, which (together with the graph) is sufficient to derive any other observational, interventional, or counterfactual probability. The canonical parameterization extends this assignment to any input causal diagram, guaranteeing that $P(\r)$ is expressive enough to model any counterfactual probability (compatible with the causal diagram).\qed
+
+% \begin{table}[t]
+% \centering
+% \caption{Canonical parameterization of the binary bow. The factual cell is given by $(X,Y)=(R_X,Y_{R_X})$.}
+% \label{tab:bow-canonical}
+% \small
+% \begin{tabular}{@{}cccccc@{}}
+% \toprule
+% $(R_X,R_Y)$ & $X$ & $Y_0$ & $Y_1$ & Factual cell & In $P(Y_1{=}1)$? \\
+% \midrule
+% $(0,00)$ & $0$ & $0$ & $0$ & $(0,0)$ & no \\
+% $(0,01)$ & $0$ & $0$ & $1$ & $(0,0)$ & yes \\
+% $(0,10)$ & $0$ & $1$ & $0$ & $(0,1)$ & no \\
+% $(0,11)$ & $0$ & $1$ & $1$ & $(0,1)$ & yes \\
+% $(1,00)$ & $1$ & $0$ & $0$ & $(1,0)$ & no \\
+% $(1,01)$ & $1$ & $0$ & $1$ & $(1,1)$ & yes \\
+% $(1,10)$ & $1$ & $1$ & $0$ & $(1,0)$ & no \\
+% $(1,11)$ & $1$ & $1$ & $1$ & $(1,1)$ & yes \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
+
+\end{example}
+
+\subsection{The (partial) identification program}
+\label{sec:program}
+
+The partial identification problem from observational data may then be written as follows.
+
+\begin{definition}[Optimal Counterfactual Bound]
+  \label{def:optimal_bound}
+  For a distribution $P(\V)$ and assumptions $\1A$, the optimal bound over a counterfactual probability $P(\y_\x, \ldots, \z_\w)$ is defined as, respectively,
+  \begin{align}
+    \label{eq:counterfactual_bounds}
+    \min/\max_{M} \quad P_M(\y_\x, \ldots, \z_\w) \quad\text{s.t.}\quad M \in \{M: P_M(\V) = P(\V),\ M\in\1A\}.
+  \end{align}
+\end{definition}
+
+Here, the set of assumptions $\1A$ is a restriction on the structural models $M$ under consideration that is assumed to hold in a particular application. They specify additional functional or distributional properties of the SCM. 
+
+%For example, assuming a causal diagram $\G$ enforces that the underlying data generating system $M \in \1A:=\{M:\G_M=\G\}$ induces $\G$. So called shape restrictions, typically in addition to structural restrictions, constrain the shape of functional dependencies. For example, one might enforce that the effect of treatment necessarily increases the probability of outcome enforces $M\in\1A := \{M: P_M(Y_{X=1} = 1) > P_M(Y_{X=0} = 1)\}$, also known as the \emph{monotone treatment response} (MTR) assumption \citep{manski1997monotone}. One may also consider sensitivity assumptions \citep{tan2006distributional,rosenbaum2002observational,masten2018identification,jin2023sensitivity}, that instead cap the strength of (typically) unobserved confounding by an amount specified by the user.
+
+\begin{example}[\Cref{ex:bow} continued]
+  Consider the query $P(Y_1{=}1)$. Using the canonical parameterization, we can enumerate the realizations of $\R$ that satisfy the counterfactual event $\{Y_1{=}1\}$. If we take the interpretation of $P(\r)$ as parameterizing the joint $q_{x,ab}=P(R_X{=}x,\,R_Y{=}ab)=P(X=x,Y_0=a,Y_1=b)$, where $x,a,b \in \{0,1\}$, we obtain $P(Y_{1}{=}1)=q_{0,01}+q_{0,11}+q_{1,01}+q_{1,11}$ by marginalizing over the support of $\{X,Y_0\}$. The optimal bounds for this quantity can be obtained from the following program:
+  \begin{align}
+    \label{eq:bow_bounds}
+    \min/\max_{\q} \quad & q_{0,01}+q_{0,11}+q_{1,01}+q_{1,11} \\
+    \text{s.t.}\quad & q_{0,00}+q_{0,01}=P(0,0),\quad q_{0,10}+q_{0,11}=P(0,1), \nonumber\\
+    & q_{1,00}+q_{1,10}=P(1,0),\quad q_{1,01}+q_{1,11}=P(1,1),\quad q_{x,ab} \ge 0. \nonumber
+  \end{align}
+  Both the objective and constraints are linear in $\q$.\qed
+\end{example}
+
+A linear program is useful here because its optimum is the sharp bound, and a solver can return that optimum. The next section explores under what conditions the partial identification program is a linear program.
+
+
+% \subsection{Assumptions}
+
+% \begin{definition}[Assumptions]
+%   A set of assumptions $\1A$ is a restriction on the structural models $M$ under consideration that is assumed to hold in a particular application.
+% \end{definition}
+
+% Different kinds of assumptions have been exploited in the literature. It will be useful to group them into structural assumptions, shape restrictions, and sensitivity budgets. 
+
+% Structural assumptions constrain the functional dependencies between variables. For example, assuming a causal diagram $\G$ enforces that the underlying data generating system $M \in \1A:=\{M:\G_M=\G\}$ induces $\G$, while assuming a topological ordering of the variables is coarser, equivalent to allowing for a family of causal diagrams for $M$. 
+
+% Shape restrictions, typically in addition to structural restrictions, constrain the shape of functional dependencies. For example, one might enforce that the effect of treatment necessarily increases the probability of outcome (without specifying by how much) enforces $M\in\1A := \{M: P_M(Y_{X=1} = 1) > P_M(Y_{X=0} = 1)\}$, also known as the \emph{monotone treatment response} (MTR) assumption \citep{manski1997monotone}. Variations such as the \emph{monotone treatment selection} (MTS) or the \emph{no defiers} assumptions \citep{imbens1994identification} are extensively used.
+
+% Sensitivity assumptions, instead, cap the strength of (typically) unobserved confounding by an amount specified by the user. Tan's marginal sensitivity model \citep{tan2006distributional}, for example, bounds the odds ratio of receiving treatment $A$ given covariates $X$ with and without an unmeasured confounder $U$, i.e., $\Lambda^{-1}\le \frac{e(x,u)/(1-e(x,u))}{e(x)/(1-e(x))}\le\Lambda$. Here $e(x,u)=P(A=1\mid X=x,U=u)$ and $e(x)=P(A=1\mid X=x)$. Several variations have been proposed, including Rosenbaum's model \citep{rosenbaum2002observational}, $c$-dependence \citep{masten2018identification}, $f$-sensitivity \citep{jin2023sensitivity}, among others. We give a more detailed overview in the Appendix.
+
+% We might consider:
+% \begin{itemize}[leftmargin=1.4em,itemsep=0.15em]
+% \item Tan's marginal sensitivity model \citep{tan2006distributional}:
+%   $\Lambda^{-1}\le \frac{e(r)/(1-e(r))}{e_0/(1-e_0)}\le\Lambda$ (\texttt{tan\_msm});
+% \item Rosenbaum's $\Gamma$ \citep{rosenbaum2002observational}, anchored to the
+%   observed odds, which is Tan's model with $\Lambda=\sqrt{\Gamma}$
+%   (\texttt{rosenbaum\_gamma});
+% \item $c$-dependence \citep{masten2018identification}:
+%   $\lvert e(r)-e_0\rvert\le c$ (\texttt{c\_dependence});
+% \item $f$-sensitivity \citep{jin2023sensitivity}: an $f$-divergence between
+%   $P(X\mid R{=}r)$ and $P(X)$ at most $\rho$ (\texttt{f\_sensitivity}; KL,
+%   $\chi^2$, or total variation);
+% \item a margin budget: the untreated mass with $Y_x=y$ stays within $\kappa$ of
+%   its no-confounding value (\texttt{margin\_budget});
+% \item a support bound: at most $k$ response types have positive mass
+%   (\texttt{support\_bound}).
+% \end{itemize}
+
+% The rest of this section fixes a running example and surveys, by example, the
+% queries and the assumptions that \pid{} accepts. The same examples
+% are solved in \cref{sec:program,sec:illustrations}, and the code that produces
+% each number is collected in \cref{app:code}.
+
+
+
+% \begin{figure}[t]
+% \centering
+% \begin{tikzpicture}[x=1.45cm,y=6.0cm,>=Stealth]
+%   \fill[blue!8] plot[domain=1:7/3,samples=30] (\x,{0.85-0.15/\x})
+%      -- plot[domain=7/3:1,samples=30] (\x,{0.85-0.15*\x}) -- cycle;
+%   \fill[blue!8] plot[domain=7/3:7,samples=40] (\x,{0.85-0.15/\x})
+%      -- plot[domain=7:7/3,samples=40] (\x,{0.35*(1+1/\x)}) -- cycle;
+%   \draw[->] (0.8,0.30) -- (7.4,0.30) node[right,font=\small] {$\Lambda$};
+%   \draw[->] (0.8,0.30) -- (0.8,0.92) node[above,font=\small] {$P(Y_1{=}1)$};
+%   \foreach \x in {1,2,3,4,5,6,7}
+%     \draw (\x,0.30) -- (\x,0.292) node[below,font=\scriptsize] {\x};
+%   \foreach \y in {0.35,0.40,0.55,0.70,0.85}
+%     \draw (0.8,\y) -- (0.77,\y) node[left,font=\scriptsize] {\y};
+%   \draw[dashed,black!40] (0.8,0.85) -- (7.2,0.85);
+%   \draw[dashed,black!40] (0.8,0.35) -- (7.2,0.35);
+%   \draw[dotted,black!60] (0.8,0.40) -- (7.2,0.40);
+%   \draw[very thick,blue!70!black,domain=1:7,samples=60] plot (\x,{0.85-0.15/\x});
+%   \draw[very thick,red!70!black,domain=1:7/3,samples=30] plot (\x,{0.85-0.15*\x});
+%   \draw[very thick,red!70!black,domain=7/3:7,samples=40] plot (\x,{0.35*(1+1/\x)});
+%   \fill (1,0.70) circle (1.5pt);
+%   \node[font=\scriptsize,anchor=south west] at (5.0,0.825) {$u(\Lambda)$};
+%   \node[font=\scriptsize,anchor=north west] at (3.6,0.455) {$\ell(\Lambda)$};
+%   \node[font=\scriptsize,anchor=west,black!60] at (7.2,0.85) {Manski $u$};
+%   \node[font=\scriptsize,anchor=west,black!60] at (7.2,0.35) {Manski $\ell$};
+%   \node[font=\scriptsize,anchor=west,black!60] at (7.2,0.40) {untreated rate};
+% \end{tikzpicture}
+% \caption{Tan MSM sensitivity path on the job-training table
+% (\cref{ex:msm}). The interval is $0.70$ at $\Lambda=1$ and widens towards the
+% natural bounds $[0.35,0.85]$ as $\Lambda$ grows. Produced by
+% \texttt{bound\_path(..., param="Lambda", theta\_min=1, theta\_max=7)}.}
+% \label{fig:msm-intro}
+% \end{figure}
+
+% \paragraph{Composition.}
+% Combining assumptions with \texttt{\&} intersects admissible sets, so it can
+% only narrow an interval or reveal that the assumptions contradict the data.
+
+% \begin{proposition}[Monotonicity of composition]
+% \label{prop:mono}
+% If $\1A'\subseteq\1A$, then the optimal bound~\eqref{eq:counterfactual_bounds}
+% under $\1A'$ is contained in the bound under $\1A$, or the program under $\1A'$
+% is infeasible.
+% \end{proposition}
+
+% For example, MTR together with an anchored Tan budget $\Lambda=2$ gives
+% $[0.550,0.775]$ on \cref{ex:job}. This lies inside the MTR interval
+% $[0.55,0.85]$ and here coincides with the $\Lambda=2$ interval: on this table
+% the budget already implies the MTR lower bound. \Cref{tab:zoo} applies every
+% factory to the same table.
