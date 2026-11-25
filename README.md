@@ -17,33 +17,29 @@ Assumptions are named pieces from the literature; you combine them with `&`.
 **Status:** `0.1.0a5` (alpha). The API may change; see the
 [stability contract](docs/stability.md).
 
-**Paper:** An accompanying theory paper is in preparation. Until it appears,
-please cite the [software](docs/citing.md) and the methodological sources for
-the assumptions you use.
+**Paper:** The manuscript
+[A Graphical Criterion for Linear Causal Bounds](https://github.com/alexisbellot/partialid/blob/main/A%20Graphical%20Criterion%20for%20Linear%20Causal%20Bounds.pdf)
+accompanies this package. Please cite the [software](docs/citing.md) and the
+methodological sources for the assumptions you use.
 
 **Docs:** [https://alexisbellot.github.io/partialid/](https://alexisbellot.github.io/partialid/)
-(GitHub Pages; available once the repo is public / Pages is enabled).
 
 ## Install
 
 Requires Python ≥ 3.10. Dependencies: NumPy, SciPy, pandas, HiGHS (`highspy`),
 and CVXPY.
 
-Until the package is on PyPI, install from the repository:
-
 ```bash
-pip install "git+https://github.com/alexisbellot/partialid.git"
-# or, from a clone:
-pip install -e .
+pip install partialid
 ```
+
+From a clone, for development:
 
 ```bash
 pip install -e ".[dev]"         # lint, tests, docs
 pip install -e ".[notebooks]"   # Jupyter for tutorials under notebooks/
 pytest
 ```
-
-When published: `pip install partialid`.
 
 ## Quick start
 
