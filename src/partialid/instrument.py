@@ -558,8 +558,103 @@ def formulate_instrument(
 
     assumptions = as_assumption_set(assumptions)
     allow = _face_mask(ts, diagram, assumptions)
+    expr_numer = None
+    inv_denom = 1.0
+    inst_pos = {name: k for k, name in enumerate(ts.instruments)}
+    r_pos = {name: k for k, name in enumerate(ts.r_side)}
     if query.kind not in ("interventional", "ate"):
-        raise NotImplementedError("instrument LP currently supports interventional and ate queries")
+        from .query_ast import Cond, LinComb, PO
+        from .query_compile import unnest_expr
+        from .query_footprint import _denom_is_observational
+
+        if query.expr is None:
+            raise NotImplementedError("instrument LP requires query.expr for non-interventional queries")
+        unnested = unnest_expr(query.expr, variables, diagram)
+        if isinstance(unnested, Cond):
+            if not _denom_is_observational(unnested.denom):
+                raise NotImplementedError("instrument LP requires observational denominator for Cond")
+            denom_val = 0.0
+            obs_pos = {name: k for k, name in enumerate(obs_topo)}
+            for coeff_d, atom_d in unnested.denom.terms:
+                for cell_t, p_t in zip(cells_topo, P_topo):
+                    if all(cell_t[obs_pos[lit.expr]] == lit.value for lit in atom_d.lits):  # type: ignore[index]
+                        denom_val += float(coeff_d) * float(p_t)
+            if abs(denom_val) <= 1e-15:
+                raise ValueError("zero observational denominator in instrument LP")
+            inv_denom = 1.0 / denom_val
+            expr_numer = unnested.numer
+        elif isinstance(unnested, LinComb):
+            expr_numer = unnested
+        else:
+            raise NotImplementedError(f"unsupported instrument query expr {type(unnested)!r}")
+
+        # Guard: if an intervention sets an instrument u, no other un-intervened instrument
+        # may have u as a directed ancestor (eval_r_indices holds un-intervened WL at ic).
+        inst_anc: dict[str, set[str]] = {}
+        for u_inst in ts.instruments:
+            seen_u: set[str] = set()
+            st_u = list(diagram.parents(u_inst))
+            while st_u:
+                cur_u = st_u.pop()
+                if cur_u in seen_u:
+                    continue
+                seen_u.add(cur_u)
+                st_u.extend(diagram.parents(cur_u))
+            inst_anc[u_inst] = seen_u
+        for _c, atom_n in expr_numer.terms:
+            for lit in atom_n.lits:
+                if isinstance(lit.expr, PO):
+                    asg = lit.expr.assignment
+                    for u_inst in ts.instruments:
+                        if u_inst not in asg and (inst_anc[u_inst] & set(asg.keys())):
+                            raise NotImplementedError(
+                                "instrument LP: intervention inside multi-layer WL"
+                            )
+
+    def _eval_expr_coeff(t_idx: int) -> float:
+        from .query_ast import PO
+
+        assert expr_numer is not None
+        total = 0.0
+        for i_flat, ic in enumerate(ts.i_cells):
+            w_i = P_i[i_flat]
+            if w_i <= 1e-15:
+                continue
+            r_obs: tuple[int, ...] | None = None
+            acc_ic = 0.0
+            for coeff_a, atom_a in expr_numer.terms:
+                ok = True
+                for lit in atom_a.lits:
+                    if isinstance(lit.expr, str):
+                        vname = lit.expr
+                        if vname in inst_pos:
+                            val = ic[inst_pos[vname]]
+                        elif vname in r_pos:
+                            if r_obs is None:
+                                r_obs = ts.eval_r_indices(t_idx, ic, None)
+                            val = ts.domain_list[vname][r_obs[r_pos[vname]]]
+                        else:
+                            raise ValueError(f"variable {vname!r} outside instrument+R")
+                        if val != lit.value:
+                            ok = False
+                            break
+                    elif isinstance(lit.expr, PO):
+                        vname = lit.expr.var
+                        asg = lit.expr.assignment
+                        if vname in inst_pos:
+                            val = asg[vname] if vname in asg else ic[inst_pos[vname]]
+                        elif vname in r_pos:
+                            r_iv = ts.eval_r_indices(t_idx, ic, asg)
+                            val = ts.domain_list[vname][r_iv[r_pos[vname]]]
+                        else:
+                            raise ValueError(f"PO variable {vname!r} outside instrument+R")
+                        if val != lit.value:
+                            ok = False
+                            break
+                if ok:
+                    acc_ic += float(coeff_a)
+            total += float(w_i) * acc_ic
+        return inv_denom * total
 
     msm_l, ros_l, cdep_l = _sensitivity_atoms(assumptions)
     keep_raw = bool(msm_l or ros_l or cdep_l)
@@ -609,8 +704,10 @@ def formulate_instrument(
             obj = ts.query_coeff(t, query.outcome, query.value, {treatment: t1}) - ts.query_coeff(
                 t, query.outcome, query.value, {treatment: t0}
             )
-        else:
+        elif query.kind == "interventional":
             obj = ts.query_coeff(t, query.outcome, query.value, query.intervention)
+        else:
+            obj = _eval_expr_coeff(t)
         hits: list[int] = []
         for i_flat, ic in enumerate(ts.i_cells):
             if P_i[i_flat] <= 1e-15:
@@ -627,7 +724,7 @@ def formulate_instrument(
             raw_col_types.append(t)
             col_c.append(obj)
         else:
-            sig = (obj, hits_t)
+            sig = (round(float(obj), 12), hits_t)
             if sig in sig_to_col:
                 continue
             col = len(col_c)

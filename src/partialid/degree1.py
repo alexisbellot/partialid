@@ -159,13 +159,19 @@ def analyze_degree1(
                     "for latent endogenous / measurement error"
                 )
             ancestral |= keep_obs
-    closed = c_component_closure(g, ancestral)
-    if closed != ancestral:
+    added_closure: set[str] = set()
+    while True:
+        closed = c_component_closure(g, ancestral)
+        added_closure |= closed - ancestral
+        nxt = directed_ancestors(g, closed)
+        if nxt == ancestral:
+            break
+        ancestral = nxt
+    if added_closure:
         notes.append(
-            f"c-component closure kept {sorted(closed - ancestral)} "
+            f"c-component closure kept {sorted(added_closure)} "
             "(share a latent with the ancestral set)"
         )
-        ancestral = closed
     notes.append(f"ancestral={sorted(ancestral)}")
 
     g_an = induced_subgraph(g, ancestral)

@@ -88,26 +88,87 @@ def _denom_is_observational(denom: LinComb) -> bool:
     return True
 
 
-def _cross_world_from_atom(atom: Atom) -> set[str]:
+def _ancestors_and_active_regimes(
+    diagram: CausalDiagram, target: str, assign: dict
+) -> dict[str, frozenset]:
+    """Map each non-intervened ancestor of ``target`` in ``G_{\\bar{assign}}`` to its active regime."""
+    if target not in diagram.nodes:
+        return {}
+    anc: set[str] = set()
+    stack = [target]
+    while stack:
+        u = stack.pop()
+        if u in anc:
+            continue
+        anc.add(u)
+        if u in assign:
+            continue
+        for p in diagram.parents(u):
+            if p not in anc:
+                stack.append(p)
+
+    out: dict[str, frozenset] = {}
+    for w in anc:
+        if w in assign:
+            continue
+        hit: set[str] = set()
+        seen: set[str] = {w}
+        st = list(diagram.parents(w))
+        while st:
+            cur = st.pop()
+            if cur in assign:
+                hit.add(cur)
+                continue
+            if cur in seen:
+                continue
+            seen.add(cur)
+            st.extend(diagram.parents(cur))
+        out[w] = _freeze_assignment({k: assign[k] for k in hit})
+    return out
+
+
+def _cross_world_from_atom(
+    atom: Atom, diagram: CausalDiagram | None = None
+) -> set[str]:
     """PO-variables that are free because of this atom's regime / evidence."""
     po_contexts: dict[str, set[frozenset]] = {}
     atom_factual: set[str] = set()
     assignments: set[frozenset] = set()
     po_vars: set[str] = set()
+    worlds_by_var: dict[str, set[frozenset]] = {}
 
     for lit in atom.lits:
         if isinstance(lit.expr, str):
             atom_factual.add(lit.expr)
+            if diagram is not None and lit.expr in diagram.nodes:
+                st = [lit.expr]
+                seen: set[str] = set()
+                while st:
+                    u = st.pop()
+                    if u in seen:
+                        continue
+                    seen.add(u)
+                    worlds_by_var.setdefault(u, set()).add(frozenset())
+                    st.extend(diagram.parents(u))
         elif isinstance(lit.expr, PO):
             po_vars.add(lit.expr.var)
             if lit.expr.is_flat():
-                frozen = _freeze_assignment(dict(lit.expr.assignment))
+                raw_assign = dict(lit.expr.assignment)
+                frozen = _freeze_assignment(raw_assign)
                 assignments.add(frozen)
                 po_contexts.setdefault(lit.expr.var, set()).add(frozen)
+                if diagram is not None:
+                    for w, reg in _ancestors_and_active_regimes(
+                        diagram, lit.expr.var, raw_assign
+                    ).items():
+                        worlds_by_var.setdefault(w, set()).add(reg)
 
     free: set[str] = set()
     for var, ctxs in po_contexts.items():
         if len(ctxs) >= 2 or var in atom_factual:
+            free.add(var)
+    for var, wset in worlds_by_var.items():
+        if len(wset) >= 2:
             free.add(var)
 
     multi_regime = len(assignments) >= 2
@@ -142,7 +203,7 @@ def extract_footprint_from_expr(
                 all_vars.add(lit.expr)
             elif isinstance(lit.expr, PO):
                 _walk_po_vars(lit.expr, all_vars, intervention_vars)
-        cross_world |= _cross_world_from_atom(atom)
+        cross_world |= _cross_world_from_atom(atom, diagram=diagram)
 
     # Cond with observational evidence: all numerator PO-variables are free
     if isinstance(expr, Cond) and _denom_is_observational(expr.denom):

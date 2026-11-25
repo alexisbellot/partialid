@@ -298,8 +298,25 @@ def bound(
             )
 
     # ID reduction for explicit diagrams (before LP), when not forcing a special solver
+    # and no extra structural/shape/support restrictions can delete edges or falsify P.
+    from .assumptions import (
+        ExclusionAssumption,
+        IndependenceAssumption,
+        MonotonicityAssumption,
+        NoDefiersAssumption,
+        SupportBoundAssumption,
+    )
+
+    has_id_blocking_atoms = bool(
+        assumptions.of_type(ExclusionAssumption)
+        or assumptions.of_type(MonotonicityAssumption)
+        or assumptions.of_type(NoDefiersAssumption)
+        or assumptions.of_type(SupportBoundAssumption)
+        or assumptions.of_type(IndependenceAssumption)
+    )
     if (
         optimize
+        and not has_id_blocking_atoms
         and method in ("auto", "fiber", "lp")
         and query.kind
         in (

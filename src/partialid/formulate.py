@@ -1561,6 +1561,39 @@ def formulate(
                 return empty
             uncertified.extend(unknown)
 
+            # Screen unconfounded singletons carrying monotonicity / no-defiers restrictions
+            # that pinning or POINT-ID would otherwise eliminate without checking P(v | pa_v).
+            constrained_vars = {
+                m.outcome for m in assumptions.of_type(MonotonicityAssumption)
+            } | {nd.treatment for nd in assumptions.of_type(NoDefiersAssumption)}
+            if constrained_vars:
+                obs_all = variables.observed_names(diagram.topological_order())
+                comps_map = {n: c for c in diagram.c_components() for n in c}
+                for v_chk in constrained_vars:
+                    if v_chk not in comps_map:
+                        continue
+                    comp_v = comps_map[v_chk]
+                    if len(comp_v) == 1 and not diagram.latent_hyperedges_in(comp_v):
+                        pa_v = tuple(diagram.parents(v_chk))
+                        if v_chk in obs_all and not pinning_kernel_holds(
+                            variables, obs_all, data, diagram, v_chk, pa_v
+                        ):
+                            return _infeasible_lp(
+                                variables,
+                                notes,
+                                f"infeasible: unconfounded {v_chk} is not pinned by its parent kernel",
+                            )
+                        if pa_v:
+                            feas_v = _one_edge_feasible(
+                                variables, data, diagram, frozenset({v_chk}), assumptions
+                            )
+                            if feas_v is False:
+                                return _infeasible_lp(
+                                    variables,
+                                    notes,
+                                    f"infeasible: unconfounded {v_chk} violates monotonicity on P",
+                                )
+
         def _gpp_query_ok(diag: CausalDiagram, vars_: Variables, data_: Mapping) -> bool:
             if isinstance(query.expr, _LinComb):
                 return True
@@ -1632,18 +1665,22 @@ def formulate(
                 )
 
             # Prefer recorded C2 cut → instrument LP (same as early Prop. 8.4 path)
-            if prog.wl_wr_cut is not None and query.kind in ("interventional", "ate"):
+            if prog.wl_wr_cut is not None:
                 _restrict_ancestral()
                 instruments, wr = prog.wl_wr_cut
-                notes.append(
-                    f"Prop. 8.4 WL–WR cut (classify C2): WL={list(instruments)}, WR={list(wr)}"
-                )
-                lp = formulate_instrument(
-                    variables, data, query, diagram, instruments, wr, assumptions
-                )
-                lp.notes = notes + lp.notes
-                lp.outer_approximation = False
-                return _seal(lp)
+                try:
+                    lp = formulate_instrument(
+                        variables, data, query, diagram, instruments, wr, assumptions
+                    )
+                    notes.append(
+                        f"Prop. 8.4 WL–WR cut (classify C2): WL={list(instruments)}, WR={list(wr)}"
+                    )
+                    lp.notes = notes + lp.notes
+                    lp.outer_approximation = False
+                    return _seal(lp)
+                except (NotImplementedError, ValueError):
+                    if query.kind in ("interventional", "ate"):
+                        raise
 
             if len(free) == 1:
                 D = free[0]
@@ -1794,10 +1831,39 @@ def formulate(
                             )
                         )
 
-                    notes.append(
+                    from .instrument import _valid_wl_wr_cut
+
+                    if _valid_wl_wr_cut(diagram, exo, r_side):
+                        an_obs = variables.observed_names(an_order)
+                        for v in exo:
+                            if v in an_obs and not pinning_kernel_holds(
+                                variables, an_obs, data, diagram, v, tuple(diagram.parents(v))
+                            ):
+                                notes.append(
+                                    f"pinning failed: P({v} | predecessors) is not P({v} | parents)"
+                                )
+                                return _infeasible_lp(
+                                    variables,
+                                    notes,
+                                    f"infeasible: unconfounded {v} is not pinned by its parent kernel",
+                                )
+                        try:
+                            lp_exo = formulate_instrument(
+                                variables, data, query, diagram, exo, r_side, assumptions
+                            )
+                            notes.append(
+                                f"upstream exo WL={list(exo)} R-side LP on {list(r_side)}"
+                            )
+                            lp_exo.notes = notes + list(lp_exo.notes)
+                            lp_exo.outer_approximation = False
+                            return lp_exo if _lp_is_empty(lp_exo) else _seal(lp_exo)
+                        except (NotImplementedError, ValueError):
+                            pass
+
+                    _merged_outer(
                         f"LINEAR free district {list(r_side)} with exo {list(exo)}; "
                         f"no absorption path for query kind {query.kind!r} — "
-                        "using ancestral TypeSpace (may merge districts)."
+                        "using merged-latent outer LP (valid, may be conservative)."
                     )
                     # Fall through to TypeSpace on ancestral diagram.
                 else:
@@ -1811,6 +1877,35 @@ def formulate(
         elif prog.kind == ProgramKind.POINT:
             _restrict_ancestral()
             notes.append("POINT: no free district; ancestral table remargined")
+            if (
+                not outer
+                and query.kind in ("interventional", "ate")
+                and not assumptions.of_type(SupportBoundAssumption)
+                and not assumptions.of_type(MarginBudgetAssumption)
+            ):
+                from .assumptions import Assumptions
+                from .identify import try_identify
+
+                obs_an = variables.observed_names(diagram.topological_order())
+                comps_an = {n: c for c in diagram.c_components() for n in c}
+                for v_pin in diagram.topological_order():
+                    comp_pin = comps_an[v_pin]
+                    if len(comp_pin) == 1 and not diagram.latent_hyperedges_in(comp_pin):
+                        if v_pin in obs_an and not pinning_kernel_holds(
+                            variables, obs_an, data, diagram, v_pin, tuple(diagram.parents(v_pin))
+                        ):
+                            return _infeasible_lp(
+                                variables,
+                                notes,
+                                f"infeasible: unconfounded {v_pin} is not pinned by its parent kernel",
+                            )
+                idr = try_identify(
+                    variables, data, query, Assumptions.from_diagram(diagram)
+                )
+                if idr.identified and idr.value is not None:
+                    lp_pt = _constant_block(float(idr.value))
+                    lp_pt.notes = notes + list(idr.notes)
+                    return _seal(lp_pt)
 
         elif prog.kind == ProgramKind.BILINEAR_LATENT and prefer_gpp:
             from .latent_bilinear import build_latent_bilinear

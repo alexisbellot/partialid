@@ -59,6 +59,22 @@ def _iv_data_from_scm(
     pi_logits = rng.normal(size=len(i_cells))
     pi = np.exp(pi_logits - pi_logits.max())
     pi = pi / pi.sum()
+    if len(instruments) > 1:
+        from .degree1 import induced_subgraph
+
+        sub_i = induced_subgraph(diagram, instruments)
+        if not sub_i.directed and not sub_i.latent_hyperedges_in(instruments):
+            # Independent instruments: project onto the product of marginals so Z_k are independent.
+            shape = tuple(len(ts.domain_list[v]) for v in instruments)
+            arr = pi.reshape(shape)
+            prod = np.ones(shape, dtype=float)
+            for ax in range(len(instruments)):
+                axes_other = tuple(j for j in range(len(instruments)) if j != ax)
+                marg = arr.sum(axis=axes_other)
+                bshape = [1] * len(instruments)
+                bshape[ax] = shape[ax]
+                prod = prod * marg.reshape(bshape)
+            pi = (prod / prod.sum()).ravel()
     P_i = {ic: float(p) for ic, p in zip(i_cells, pi)}
 
     order = list(instruments) + list(r_side)

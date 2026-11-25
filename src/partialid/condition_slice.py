@@ -98,7 +98,7 @@ def apply_pretreatment_condition(
             g = atom.diagram
             nodes = tuple(n for n in g.nodes if n in keep)
             directed = tuple((u, v) for u, v in g.directed if u in keep and v in keep)
-            bidirected = tuple(he for he in g.bidirected if set(he) <= keep)
+            bidirected = tuple(he for he in g.bidirected if set(he) <= set(keep))
             new_atoms.append(
                 DiagramAssumption(
                     diagram=CausalDiagram(

@@ -206,3 +206,53 @@ def test_mixing_step_counterexample_is_not_linear():
     )
     prog = classify_program(g, query=_do("W", "Z", 0))
     assert prog.kind != ProgramKind.LINEAR
+
+
+def test_markovian_mediated_pns_is_bilinear_not_pinned():
+    g = CausalDiagram.from_edges(
+        ["X", "M", "Y"],
+        directed=[("X", "M"), ("M", "Y")],
+        bidirected=[],
+    )
+    V = Variables.from_binary("X", "M", "Y")
+    Q = Query.pns(treatment="X", outcome="Y")
+    prog = classify_program(g, query=Q, variables=V)
+    assert prog.kind == ProgramKind.BILINEAR_FACTOR
+    assert prog.degree == 2
+    assert set(prog.free_districts) == {frozenset({"M"}), frozenset({"Y"})}
+
+
+def test_non_ancestor_proxy_in_same_c_component_tightens_pns():
+    g = CausalDiagram.from_edges(
+        ["X", "Y", "D"],
+        directed=[("X", "Y")],
+        bidirected=[("Y", "D")],
+    )
+    V = Variables.from_binary("X", "Y", "D")
+    Q = Query.pns(treatment="X", outcome="Y")
+    eps = 0.04
+    P = {
+        (x, y, d): (1 - eps) * (0.25 if y == (x ^ d) else 0.0) + eps / 8.0
+        for x in (0, 1)
+        for y in (0, 1)
+        for d in (0, 1)
+    }
+    r = bound(V, P, Q, Assumptions.from_diagram(g))
+    assert r.success and r.tight
+    assert abs(r.lower - 0.48) < 1e-6
+    assert abs(r.upper - 0.50) < 1e-6
+
+
+def test_point_id_diagram_checks_monotonicity_feasibility():
+    V = Variables.from_binary("X", "Y")
+    a = Assumptions.diagram(["X", "Y"], directed=[("X", "Y")], bidirected=[]) & Assumptions.mtr(
+        "Y", "X"
+    )
+    Q = _do("Y", "X", 1)
+    P_bad = {(0, 0): 0.10, (0, 1): 0.40, (1, 0): 0.40, (1, 1): 0.10}
+    P_ok = {(0, 0): 0.40, (0, 1): 0.10, (1, 0): 0.10, (1, 1): 0.40}
+    assert bound(V, P_bad, Q, a).success is False
+    r_ok = bound(V, P_ok, Q, a)
+    assert r_ok.success and r_ok.tight
+    assert abs(r_ok.lower - 0.80) < 1e-6 and abs(r_ok.upper - 0.80) < 1e-6
+
