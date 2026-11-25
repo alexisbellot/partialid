@@ -563,16 +563,20 @@ def formulate_instrument(
     inst_pos = {name: k for k, name in enumerate(ts.instruments)}
     r_pos = {name: k for k, name in enumerate(ts.r_side)}
     if query.kind not in ("interventional", "ate"):
-        from .query_ast import Cond, LinComb, PO
+        from .query_ast import PO, Cond, LinComb
         from .query_compile import unnest_expr
         from .query_footprint import _denom_is_observational
 
         if query.expr is None:
-            raise NotImplementedError("instrument LP requires query.expr for non-interventional queries")
+            raise NotImplementedError(
+                "instrument LP requires query.expr for non-interventional queries"
+            )
         unnested = unnest_expr(query.expr, variables, diagram)
         if isinstance(unnested, Cond):
             if not _denom_is_observational(unnested.denom):
-                raise NotImplementedError("instrument LP requires observational denominator for Cond")
+                raise NotImplementedError(
+                    "instrument LP requires observational denominator for Cond"
+                )
             denom_val = 0.0
             obs_pos = {name: k for k, name in enumerate(obs_topo)}
             for coeff_d, atom_d in unnested.denom.terms:

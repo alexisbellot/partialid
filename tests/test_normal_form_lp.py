@@ -255,4 +255,3 @@ def test_point_id_diagram_checks_monotonicity_feasibility():
     r_ok = bound(V, P_ok, Q, a)
     assert r_ok.success and r_ok.tight
     assert abs(r_ok.lower - 0.80) < 1e-6 and abs(r_ok.upper - 0.80) < 1e-6
-

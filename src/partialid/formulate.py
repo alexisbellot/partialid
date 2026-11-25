@@ -1563,9 +1563,9 @@ def formulate(
 
             # Screen unconfounded singletons carrying monotonicity / no-defiers restrictions
             # that pinning or POINT-ID would otherwise eliminate without checking P(v | pa_v).
-            constrained_vars = {
-                m.outcome for m in assumptions.of_type(MonotonicityAssumption)
-            } | {nd.treatment for nd in assumptions.of_type(NoDefiersAssumption)}
+            constrained_vars = {m.outcome for m in assumptions.of_type(MonotonicityAssumption)} | {
+                nd.treatment for nd in assumptions.of_type(NoDefiersAssumption)
+            }
             if constrained_vars:
                 obs_all = variables.observed_names(diagram.topological_order())
                 comps_map = {n: c for c in diagram.c_components() for n in c}
@@ -1851,9 +1851,7 @@ def formulate(
                             lp_exo = formulate_instrument(
                                 variables, data, query, diagram, exo, r_side, assumptions
                             )
-                            notes.append(
-                                f"upstream exo WL={list(exo)} R-side LP on {list(r_side)}"
-                            )
+                            notes.append(f"upstream exo WL={list(exo)} R-side LP on {list(r_side)}")
                             lp_exo.notes = notes + list(lp_exo.notes)
                             lp_exo.outer_approximation = False
                             return lp_exo if _lp_is_empty(lp_exo) else _seal(lp_exo)
@@ -1899,9 +1897,7 @@ def formulate(
                                 notes,
                                 f"infeasible: unconfounded {v_pin} is not pinned by its parent kernel",
                             )
-                idr = try_identify(
-                    variables, data, query, Assumptions.from_diagram(diagram)
-                )
+                idr = try_identify(variables, data, query, Assumptions.from_diagram(diagram))
                 if idr.identified and idr.value is not None:
                     lp_pt = _constant_block(float(idr.value))
                     lp_pt.notes = notes + list(idr.notes)

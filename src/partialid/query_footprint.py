@@ -127,9 +127,7 @@ def _ancestors_and_active_regimes(
     return out
 
 
-def _cross_world_from_atom(
-    atom: Atom, diagram: CausalDiagram | None = None
-) -> set[str]:
+def _cross_world_from_atom(atom: Atom, diagram: CausalDiagram | None = None) -> set[str]:
     """PO-variables that are free because of this atom's regime / evidence."""
     po_contexts: dict[str, set[frozenset]] = {}
     atom_factual: set[str] = set()
